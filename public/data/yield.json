@@ -1,0 +1,392 @@
+{
+ "source": "FAOSTAT, Production: Crops and livestock products, Fiji, Sugar cane (item 156)",
+ "url": "https://www.fao.org/faostat/en/#data/QCL",
+ "license": "FAO statistical database terms of use (attribution)",
+ "fetched": "2026-10-12T05:46:54.146Z",
+ "years": [
+  {
+   "year": 1961,
+   "yield_t_ha": 32.85,
+   "production_t": 1166000,
+   "area_ha": 35490
+  },
+  {
+   "year": 1962,
+   "yield_t_ha": 52.21,
+   "production_t": 1853000,
+   "area_ha": 35490
+  },
+  {
+   "year": 1963,
+   "yield_t_ha": 66.69,
+   "production_t": 2374401,
+   "area_ha": 35602
+  },
+  {
+   "year": 1964,
+   "yield_t_ha": 56.64,
+   "production_t": 2356410,
+   "area_ha": 41606
+  },
+  {
+   "year": 1965,
+   "yield_t_ha": 51.61,
+   "production_t": 2205649,
+   "area_ha": 42734
+  },
+  {
+   "year": 1966,
+   "yield_t_ha": 51.41,
+   "production_t": 2227536,
+   "area_ha": 43332
+  },
+  {
+   "year": 1967,
+   "yield_t_ha": 49.36,
+   "production_t": 2197335,
+   "area_ha": 44515
+  },
+  {
+   "year": 1968,
+   "yield_t_ha": 61.95,
+   "production_t": 2871495,
+   "area_ha": 46351
+  },
+  {
+   "year": 1969,
+   "yield_t_ha": 50.5,
+   "production_t": 2376923,
+   "area_ha": 47064
+  },
+  {
+   "year": 1970,
+   "yield_t_ha": 62.56,
+   "production_t": 2885983,
+   "area_ha": 46135
+  },
+  {
+   "year": 1971,
+   "yield_t_ha": 53.75,
+   "production_t": 2545205,
+   "area_ha": 47350
+  },
+  {
+   "year": 1972,
+   "yield_t_ha": 51.21,
+   "production_t": 2238358,
+   "area_ha": 43710
+  },
+  {
+   "year": 1973,
+   "yield_t_ha": 55.06,
+   "production_t": 2495419,
+   "area_ha": 45325
+  },
+  {
+   "year": 1974,
+   "yield_t_ha": 47.88,
+   "production_t": 2150978,
+   "area_ha": 44921
+  },
+  {
+   "year": 1975,
+   "yield_t_ha": 48.09,
+   "production_t": 2160122,
+   "area_ha": 44921
+  },
+  {
+   "year": 1976,
+   "yield_t_ha": 48.61,
+   "production_t": 2283000,
+   "area_ha": 46970
+  },
+  {
+   "year": 1977,
+   "yield_t_ha": 51.42,
+   "production_t": 2674000,
+   "area_ha": 52000
+  },
+  {
+   "year": 1978,
+   "yield_t_ha": 52.83,
+   "production_t": 2853000,
+   "area_ha": 54000
+  },
+  {
+   "year": 1979,
+   "yield_t_ha": 65.53,
+   "production_t": 4063000,
+   "area_ha": 62000
+  },
+  {
+   "year": 1980,
+   "yield_t_ha": 50.91,
+   "production_t": 3360000,
+   "area_ha": 66000
+  },
+  {
+   "year": 1981,
+   "yield_t_ha": 59.56,
+   "production_t": 3931000,
+   "area_ha": 66000
+  },
+  {
+   "year": 1982,
+   "yield_t_ha": 59.06,
+   "production_t": 4075000,
+   "area_ha": 69000
+  },
+  {
+   "year": 1983,
+   "yield_t_ha": 37.34,
+   "production_t": 2203000,
+   "area_ha": 59000
+  },
+  {
+   "year": 1984,
+   "yield_t_ha": 62.17,
+   "production_t": 4290000,
+   "area_ha": 69000
+  },
+  {
+   "year": 1985,
+   "yield_t_ha": 42.86,
+   "production_t": 3043000,
+   "area_ha": 71000
+  },
+  {
+   "year": 1986,
+   "yield_t_ha": 59.55,
+   "production_t": 4109000,
+   "area_ha": 69000
+  },
+  {
+   "year": 1987,
+   "yield_t_ha": 41.7,
+   "production_t": 2960358,
+   "area_ha": 71000
+  },
+  {
+   "year": 1988,
+   "yield_t_ha": 49.77,
+   "production_t": 3185362,
+   "area_ha": 64000
+  },
+  {
+   "year": 1989,
+   "yield_t_ha": 64.05,
+   "production_t": 4099000,
+   "area_ha": 64000
+  },
+  {
+   "year": 1990,
+   "yield_t_ha": 57.37,
+   "production_t": 4016000,
+   "area_ha": 70000
+  },
+  {
+   "year": 1991,
+   "yield_t_ha": 46.95,
+   "production_t": 3380324,
+   "area_ha": 72000
+  },
+  {
+   "year": 1992,
+   "yield_t_ha": 48.4,
+   "production_t": 3533000,
+   "area_ha": 73000
+  },
+  {
+   "year": 1993,
+   "yield_t_ha": 50.13,
+   "production_t": 3704000,
+   "area_ha": 73890
+  },
+  {
+   "year": 1994,
+   "yield_t_ha": 54.64,
+   "production_t": 4064320,
+   "area_ha": 74388
+  },
+  {
+   "year": 1995,
+   "yield_t_ha": 55.6,
+   "production_t": 4110238,
+   "area_ha": 73921
+  },
+  {
+   "year": 1996,
+   "yield_t_ha": 50.41,
+   "production_t": 3729000,
+   "area_ha": 73980
+  },
+  {
+   "year": 1997,
+   "yield_t_ha": 46.36,
+   "production_t": 3384000,
+   "area_ha": 73000
+  },
+  {
+   "year": 1998,
+   "yield_t_ha": 39.7,
+   "production_t": 2263000,
+   "area_ha": 57000
+  },
+  {
+   "year": 1999,
+   "yield_t_ha": 57.65,
+   "production_t": 3747000,
+   "area_ha": 65000
+  },
+  {
+   "year": 2000,
+   "yield_t_ha": 57.11,
+   "production_t": 3598000,
+   "area_ha": 63000
+  },
+  {
+   "year": 2001,
+   "yield_t_ha": 46.62,
+   "production_t": 3077000,
+   "area_ha": 66000
+  },
+  {
+   "year": 2002,
+   "yield_t_ha": 49.48,
+   "production_t": 3216000,
+   "area_ha": 65000
+  },
+  {
+   "year": 2003,
+   "yield_t_ha": 46.18,
+   "production_t": 2817000,
+   "area_ha": 61000
+  },
+  {
+   "year": 2004,
+   "yield_t_ha": 48.7,
+   "production_t": 2971000,
+   "area_ha": 61000
+  },
+  {
+   "year": 2005,
+   "yield_t_ha": 48.72,
+   "production_t": 2826000,
+   "area_ha": 58000
+  },
+  {
+   "year": 2006,
+   "yield_t_ha": 55.03,
+   "production_t": 3192000,
+   "area_ha": 58000
+  },
+  {
+   "year": 2007,
+   "yield_t_ha": 46.54,
+   "production_t": 2513000,
+   "area_ha": 54000
+  },
+  {
+   "year": 2008,
+   "yield_t_ha": 45.53,
+   "production_t": 2322000,
+   "area_ha": 51000
+  },
+  {
+   "year": 2009,
+   "yield_t_ha": 42.63,
+   "production_t": 2089000,
+   "area_ha": 49000
+  },
+  {
+   "year": 2010,
+   "yield_t_ha": 38.91,
+   "production_t": 1751000,
+   "area_ha": 45000
+  },
+  {
+   "year": 2011,
+   "yield_t_ha": 45.98,
+   "production_t": 2115000,
+   "area_ha": 46000
+  },
+  {
+   "year": 2012,
+   "yield_t_ha": 36.81,
+   "production_t": 1546000,
+   "area_ha": 42000
+  },
+  {
+   "year": 2013,
+   "yield_t_ha": 42.37,
+   "production_t": 1610000,
+   "area_ha": 38000
+  },
+  {
+   "year": 2014,
+   "yield_t_ha": 48.21,
+   "production_t": 1832000,
+   "area_ha": 38000
+  },
+  {
+   "year": 2015,
+   "yield_t_ha": 45,
+   "production_t": 1845000,
+   "area_ha": 41000
+  },
+  {
+   "year": 2016,
+   "yield_t_ha": 35.56,
+   "production_t": 1387000,
+   "area_ha": 39000
+  },
+  {
+   "year": 2017,
+   "yield_t_ha": 42.92,
+   "production_t": 1631000,
+   "area_ha": 38000
+  },
+  {
+   "year": 2018,
+   "yield_t_ha": 45.86,
+   "production_t": 1697000,
+   "area_ha": 37000
+  },
+  {
+   "year": 2019,
+   "yield_t_ha": 47.53,
+   "production_t": 1806000,
+   "area_ha": 38000
+  },
+  {
+   "year": 2020,
+   "yield_t_ha": 45.42,
+   "production_t": 1726000,
+   "area_ha": 38000
+  },
+  {
+   "year": 2021,
+   "yield_t_ha": 41.68,
+   "production_t": 1417000,
+   "area_ha": 34000
+  },
+  {
+   "year": 2022,
+   "yield_t_ha": 41,
+   "production_t": 1639000,
+   "area_ha": 39976
+  },
+  {
+   "year": 2023,
+   "yield_t_ha": 50.75,
+   "production_t": 1565564,
+   "area_ha": 30848
+  },
+  {
+   "year": 2024,
+   "yield_t_ha": 38.06,
+   "production_t": 1332000,
+   "area_ha": 35000
+  }
+ ]
+}

@@ -6,7 +6,8 @@ import solc from 'solc'
 
 export function compile(sources) {
   const input = { language: 'Solidity', sources: Object.fromEntries(Object.entries(sources).map(([k, v]) => [k, { content: v }])),
-    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true, outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } } }
+    // evmVersion pinned to match the in-browser EVM (src/evm.js) and public testnets.
+    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true, evmVersion: 'cancun', outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } } }
   const out = JSON.parse(solc.compile(JSON.stringify(input)))
   const errs = (out.errors ?? []).filter((e) => e.severity === 'error')
   if (errs.length) throw new Error(errs.map((e) => e.formattedMessage).join('\n'))
