@@ -197,22 +197,25 @@ const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric &
     `<div class="stat bad"><b>${falseAlarms.length}</b><span>false alarms: ${falseAlarms.map((s) => `${s.season} paid ${Math.round(s.payout * 100)}%, yields ${s.yieldChange >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}%`).join('; ')}</span></div>` +
     `<div class="stat"><b>${(avg * 100).toFixed(1)}%</b><span>of cover paid out per year on average: the fair price before costs (${F(avg * 1000)} a year for F$1,000)</span></div>`
 
-  const W = 1100, H = 300, L = 40, top = 20, mid = 160, scale = 120, step = (W - L - 10) / S.length
+  // Two bands sharing the season axis: payouts on top (0–100%), cane yield change below (−45% to +30%, zero line in the middle).
+  const W = 1100, H = 340, L = 52, top = 22, payBase = 150, y0 = 248, scale = 150, step = (W - L - 10) / S.length
   const x = (i) => L + i * step + step * 0.15, bw = step * 0.7
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Payouts and cane yield changes by season, 1982 to ${S.at(-1).season}">`
-  S.forEach((s, i) => { if (STORM[s.season]) svg += `<rect x="${L + i * step}" y="${top}" width="${step}" height="${H - top - 30}" fill="#c7d6e2" opacity=".5"/>` })
-  svg += `<line x1="${L}" x2="${W - 10}" y1="${mid}" y2="${mid}" stroke="#1f1a14"/>`
-  svg += `<text x="4" y="${top + 8}">100%</text><text x="4" y="${mid - 4}">paid</text><text x="4" y="${mid + 14}">yield</text><text x="4" y="${mid + scale * 0.4 + 4}">−40%</text>`
+  S.forEach((s, i) => { if (STORM[s.season]) svg += `<rect x="${L + i * step}" y="${top}" width="${step}" height="${H - top - 24}" fill="#c7d6e2" opacity=".5"/>` })
+  svg += `<line x1="${L}" x2="${W - 10}" y1="${payBase}" y2="${payBase}" stroke="#1f1a14"/><line x1="${L}" x2="${W - 10}" y1="${y0}" y2="${y0}" stroke="#9a8d7c" stroke-dasharray="3 3"/>`
+  svg += `<text x="4" y="${top + 8}">100%</text><text x="4" y="${payBase - 4}">paid 0%</text><text x="4" y="${y0 - 3}">yield ±0</text><text x="4" y="${y0 + 0.4 * scale}">−40%</text>`
+  let lastLabel = -9
   S.forEach((s, i) => {
-    const h = s.payout * (mid - top - 10)
-    svg += `<rect x="${x(i)}" y="${mid - h}" width="${bw}" height="${h}" fill="#17603a"><title>${s.season}: paid ${Math.round(s.payout * 100)}% of cover</title></rect>`
+    const h = s.payout * (payBase - top - 12)
+    svg += `<rect x="${x(i)}" y="${payBase - h}" width="${bw}" height="${h}" fill="#17603a"><title>${s.season}: paid ${Math.round(s.payout * 100)}% of cover</title></rect>`
     if (s.yieldChange != null) {
       const v = Math.max(-0.45, Math.min(0.3, s.yieldChange)), yh = Math.abs(v) * scale
-      svg += `<rect x="${x(i) + bw * 0.25}" y="${v < 0 ? mid : mid - yh}" width="${bw * 0.5}" height="${yh}" fill="${v < 0 ? '#b4410f' : '#d9c7ad'}"><title>${s.season}: cane yield ${v >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}% vs nearby seasons</title></rect>`
+      svg += `<rect x="${x(i)}" y="${v < 0 ? y0 : y0 - yh}" width="${bw}" height="${yh}" fill="${v < 0 ? '#b4410f' : '#d9c7ad'}"><title>${s.season}: cane yield ${v >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}% vs nearby seasons</title></rect>`
     }
-    if (s.season % 5 === 0 || DROUGHT.includes(s.season) || STORM[s.season]) svg += `<text x="${x(i) + bw / 2}" y="${H - 10}" text-anchor="middle">${s.season}</text>`
-    if (DROUGHT.includes(s.season)) svg += `<text class="lbl" x="${x(i) + bw / 2}" y="${mid - s.payout * (mid - top - 10) - 6}" text-anchor="middle">${Math.round(s.payout * 100)}%</text>`
-    if (STORM[s.season]) svg += `<text class="lbl" x="${L + i * step + step / 2}" y="${H - 34}" text-anchor="middle" style="font-size:9px">${STORM[s.season].split(' ')[0]}</text>`
+    const key = DROUGHT.includes(s.season) || STORM[s.season]
+    if ((key || s.season % 5 === 0) && s.season - lastLabel >= 2) svg += `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle">${s.season}</text>`, (lastLabel = s.season)
+    if (DROUGHT.includes(s.season)) svg += `<text class="lbl" x="${x(i) + bw / 2}" y="${payBase - h - 6}" text-anchor="middle">${Math.round(s.payout * 100)}%</text>`
+    if (STORM[s.season]) svg += `<text class="lbl" x="${L + i * step + step / 2}" y="${top + 12}" text-anchor="middle" style="font-size:9px">${STORM[s.season].split(' ')[0]}</text>`
   })
   $('chart').innerHTML = svg + '</svg>'
 }

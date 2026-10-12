@@ -156,6 +156,7 @@ input[type=range] { width: 100%; accent-color: var(--dry); }
 .meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--paid); transition: width .3s, background .3s; }
 .meter b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
 .verdict { grid-column: 1 / -1; padding: 18px 20px; border-radius: 16px; background: var(--ink); color: var(--paper); font-size: 16px; min-height: 64px; }
+.verdict:empty { display: none; }
 .verdict b { color: #ffcf9e; }
 .verdict small { display: block; margin-top: 6px; font-family: var(--mono); font-size: 11.5px; color: #a89a86; word-break: break-all; }
 
