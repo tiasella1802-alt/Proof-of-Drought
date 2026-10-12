@@ -23,7 +23,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const drierThan = (x) => `drier than ${Math.min(99, Math.round((1 - x) * 100))}% of years in the 30-year record`
 const kind = (x) => (x <= 0.1 ? 'severe drought' : x <= 0.2 ? 'drought' : x <= 0.35 ? 'dry' : x <= 0.65 ? 'normal' : 'wet')
 const was = (x) => (x <= 0.2 ? `a ${kind(x)}` : kind(x)) // "was a drought" but "was wet"
-const STOPS = [[0, [122, 32, 6]], [0.12, [170, 50, 10]], [0.25, [224, 138, 74]], [0.45, [239, 229, 212]], [0.75, [150, 190, 218]], [1, [47, 111, 159]]]
+const STOPS = [[0, [190, 24, 12]], [0.1, [255, 61, 46]], [0.22, [255, 154, 92]], [0.42, [216, 221, 230]], [0.72, [130, 186, 255]], [1, [78, 168, 255]]]
 function colour(x) {
   let i = 0
   while (i < STOPS.length - 2 && x > STOPS[i + 1][0]) i++
@@ -43,19 +43,32 @@ async function newChain(perDistrict) {
   return { c, dc }
 }
 
-// ---------- 1. the player ----------
+// ---------- 1. the stage: satellite map, district markers, the farmer's phone ----------
 const YEARS = Object.keys(IDX.replays).map(Number)
-const LABEL = { 1983: '1983 · El Niño', 1987: '1987 · El Niño', 1992: '1992 · El Niño', 1998: '1998 · the big drought', 2010: '2010 · El Niño', 2016: '2016 · El Niño + Cyclone Winston' }
+const LABEL = { 1983: '1983 · El Niño', 1987: '1987 · El Niño', 1992: '1992 · El Niño', 1998: '1998 · the big drought', 2010: '2010 · El Niño', 2016: '2016 · Cyclone Winston year' }
 opts($('pl-year'), YEARS.map((y) => [y, LABEL[y] ?? y]), 1998)
 let run = 0, playing = false, step = -1, year = 1998, st = null, markers = []
-const monthName = (i) => { const m = [11, 12, 1, 2, 3, 4][i]; return `${MONTHS[m - 1]} ${m >= 11 ? year - 1 : year}` }
+const MONTH_I = [11, 12, 1, 2, 3, 4]
+const LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const monthName = (i) => { const m = MONTH_I[i]; return `${MONTHS[m - 1]} ${m >= 11 ? year - 1 : year}` }
+const monthLong = (i) => { const m = MONTH_I[i]; return `${LONG[m - 1]} ${m >= 11 ? year - 1 : year}` }
 
-const map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', bounds: [[177.1, -18.5], [179.75, -16.1]],
-  fitBoundsOptions: { padding: { top: 100, bottom: 50, left: 30, right: 250 } }, attributionControl: { compact: true }, cooperativeGestures: true })
+// Real Copernicus Sentinel-2 imagery as the basemap (EOX cloudless mosaic).
+const SAT = {
+  version: 8,
+  sources: { s2: { type: 'raster', tileSize: 256, maxzoom: 14, tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'],
+    attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)' } },
+  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#071022' } }, { id: 's2', type: 'raster', source: 's2', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }],
+}
+// Keep the cane belt clear of the headline (left), the phone (right), the status (top) and the dock (bottom).
+const pad = () => (innerWidth > 980 ? { top: 150, bottom: 150, left: Math.min(560, innerWidth * 0.4), right: 360 } : 30)
+const BOUNDS = [[177.25, -18.3], [179.5, -16.3]]
+const map = new maplibregl.Map({ container: 'map', style: SAT, bounds: BOUNDS, fitBoundsOptions: { padding: pad() }, attributionControl: { compact: true }, cooperativeGestures: true })
+addEventListener('resize', () => map.fitBounds(BOUNDS, { padding: pad(), duration: 0 }))
 // Markers are plain HTML, so they show straight away instead of waiting for every map tile.
 markers = D.map((d) => {
   const el = document.createElement('div')
-  el.className = 'dot-m'
+  el.className = 'dm'
   el.innerHTML = `<i></i><span>${d.name}</span>`
   return new maplibregl.Marker({ element: el, anchor: 'top' }).setLngLat([d.lon, d.lat]).addTo(map)
 })
@@ -63,29 +76,35 @@ markers = D.map((d) => {
 function paint() {
   const rows = step >= 0 ? IDX.replays[year][step].districts : null
   markers.forEach((m, k) => {
-    const el = m.getElement()
-    el.querySelector('i').style.background = rows ? colour(rows[k].index) : '#d9cfc0'
+    const el = m.getElement(), x = rows?.[k].index
+    el.querySelector('i').style.background = x == null ? '#d8dde6' : colour(x)
+    el.classList.toggle('severe', x != null && x <= 0.1 && !st?.paidD.has(k))
+    el.classList.toggle('dry', x != null && x > 0.1 && x <= 0.25)
     el.classList.toggle('paid', !!st?.paidD.has(k))
   })
-  $('pl-months').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
+  $('pl-months').innerHTML = MONTH_I.map((_, i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
     `${monthName(i).split(' ')[0]}<small>${i === 2 ? 'early check' : i === 5 ? 'final check' : ''}</small></li>`).join('')
+  $('pl-progress').style.width = `${((step + 1) / 6) * 100}%`
+  const s = $('status')
   if (step < 0) {
+    s.className = 'status'
     $('pl-month').textContent = year === 1998 ? 'The 1998 drought' : `The ${year} season`
-    $('pl-note').textContent = 'Press play to watch it month by month'
+    $('pl-note').textContent = year === 1998 ? 'Eleven months of drought, September 1997 to August 1998' : 'Press play to watch it month by month'
     return
   }
-  const severe = rows.filter((r) => r.index <= 0.1).length, dry = rows.filter((r) => r.index <= 0.2).length
-  $('pl-month').textContent = monthName(step)
-  $('pl-note').textContent = severe ? `${severe} of 8 districts in severe drought` : dry ? `${dry} of 8 districts in drought` : 'Rain looks normal across the cane belt'
+  const severe = rows.filter((r) => r.index <= 0.1).length, dry = rows.filter((r) => r.index <= 0.2).length, paidN = st?.paidD.size ?? 0
+  $('pl-month').textContent = monthLong(step)
+  s.className = `status${paidN ? ' paid' : severe || dry ? ' alarm' : ''}`
+  $('pl-note').textContent = (step === 2 || step === 5) && paidN ? `Both records agree · contract paying ${paidN} district${paidN > 1 ? 's' : ''}`
+    : severe ? `${severe} of 8 districts in severe drought` : dry ? `${dry} of 8 districts in drought` : 'Rain looks normal across the cane belt'
 }
 
-function sms(html) {
+function notify(title, body, when) {
   const ol = $('sms')
   ol.querySelector('.idle')?.remove()
   const li = document.createElement('li')
-  li.innerHTML = html
-  ol.append(li)
-  ol.scrollTop = ol.scrollHeight
+  li.innerHTML = `<div class="n-h"><i></i>Proof of Drought<em>${when}</em></div><b>${title}</b> ${body}`
+  ol.prepend(li)
 }
 function log(cls, block, text) {
   const li = document.createElement('li')
@@ -97,13 +116,25 @@ function tally() {
   $('pl-paid').textContent = F(st.paid)
   $('pl-farmers').textContent = `paid to ${st.farmers.size} of ${D.length * 12} farmers`
 }
+function cashPop(k, amount) {
+  const el = markers[k]?.getElement()
+  if (!el) return
+  const tag = document.createElement('b')
+  tag.className = 'cash'
+  tag.textContent = `+${F(amount)}`
+  tag.style.marginBottom = `${(k % 3) * 20}px` // the west-coast districts sit close together: stagger their tags
+  el.append(tag)
+  setTimeout(() => tag.remove(), 2700)
+}
 
 async function load(y) {
   const my = ++run
   year = y, step = -1, playing = false
   setPlay(false)
-  $('sms').innerHTML = '<li class="idle">Waiting for rain…</li>'
+  $('sms').innerHTML = '<li class="idle">No alerts yet. The rain is still falling… for now.</li>'
   $('ph-bal').textContent = 'F$0'
+  $('ph-date').textContent = `Ba cane farm · ${y - 1}–${String(y).slice(2)} season`
+  $('ph-time').textContent = 'Ba'
   $('record-log').innerHTML = ''
   $('pl-paid').textContent = 'F$0'
   $('pl-farmers').textContent = 'starting the blockchain…'
@@ -133,25 +164,24 @@ async function checkpoint(stage, my) {
       st.paid += amt
       paid.forEach((e) => st.farmers.add(Number(e.args.id)))
       st.paidD.add(k)
+      cashPop(k, amt)
       log('pay', res.block, `${name} · both records agree: ${kind(idx)} · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
-      const m = markers[k]?.getElement()
-      m?.classList.add('flash'); setTimeout(() => m?.classList.remove('flash'), 400)
       if (k === BA) {
-        const each = Number(paid[0].args.amount / UNIT)
+        const each = Number(paid[0].args.amount / UNIT), when = stage === 'early' ? '31 Jan' : '30 Apr'
         st.ba += each
         $('ph-bal').textContent = F(st.ba)
-        $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 350)
-        sms(stage === 'early'
-          ? `<b>Drought alert for Ba.</b> Since November it's been ${drierThan(idx)}. Both satellite records agree. <b>${F(each)} has been sent to you</b> for water, feed and seed.`
-          : `<b>Season over.</b> Ba finished ${drierThan(idx)}. <b>${F(each)} more sent</b>: ${F(st.ba)} this season.`)
+        $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 400)
+        $('ph-time').textContent = when
+        if (stage === 'early') notify(`${F(each)} received.`, `Drought confirmed at Ba: ${drierThan(idx)}. Both satellite records agree. Use it for water, feed and seed.`, when)
+        else notify(`${F(each)} received.`, `The season ended ${drierThan(idx)}. That's ${F(st.ba)} for this season.`, when)
       }
     } else {
       log('', res.block, `${name} · ${kind(idx)} · no payout needed`)
-      if (k === BA && stage === 'final' && !st.ba) sms(`<b>Season over.</b> Ba had a ${kind(idx)} season. No payout needed this year.`)
+      if (k === BA && stage === 'final' && !st.ba) notify('No payout needed.', `Ba had a ${kind(idx)} season.`, '30 Apr')
     }
     tally()
     paint()
-    await wait(110)
+    await wait(140)
   }
 }
 
@@ -165,9 +195,9 @@ async function advance() {
   return my === run
 }
 function setPlay(on) {
-  $('pl-play').classList.toggle('on', on)
   $('pl-play').innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
   $('pl-play').setAttribute('aria-label', on ? 'Pause' : 'Play')
+  $('hero-play').querySelector('span').textContent = on ? 'Playing…' : step >= 5 ? 'Replay it' : 'Replay the 1998 drought'
 }
 async function play() {
   if (playing) return (playing = false), setPlay(false)
@@ -179,12 +209,16 @@ async function play() {
   const my = run
   while (playing && my === run && step < 5) {
     if (!(await advance())) return
-    await wait(1200)
+    await wait(1300)
   }
   if (my === run) playing = false, setPlay(false)
 }
 $('pl-play').onclick = play
-$('hero-play').onclick = () => { $('player').scrollIntoView({ behavior: 'smooth', block: 'center' }); if (!playing) play() }
+$('hero-play').onclick = async () => {
+  if (playing) return
+  if (year !== 1998) $('pl-year').value = 1998, await load(1998)
+  play()
+}
 $('pl-year').oninput = () => load(+$('pl-year').value)
 $('pl-months').onclick = async (e) => {
   const i = +e.target.closest('li')?.dataset.i
@@ -195,9 +229,16 @@ $('pl-months').onclick = async (e) => {
 $('pl-rec').onclick = () => {
   const el = $('record-log'), show = el.hidden
   el.hidden = !show
-  $('pl-rec').textContent = show ? 'Hide the public record' : 'Show the public record'
+  $('pl-rec').textContent = show ? 'Hide record' : 'On-chain record'
 }
 load(1998)
+// First glance: it plays itself, once, as soon as the chain is ready (not for people who prefer reduced motion).
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) (async () => { while (!st) await wait(150); await wait(900); if (step < 0 && !playing && year === 1998) play() })()
+// The top bar turns solid once you scroll past the stage.
+const topBar = document.querySelector('.top')
+const solid = () => topBar.classList.toggle('solid', scrollY > $('stage').offsetHeight - 140)
+addEventListener('scroll', solid, { passive: true })
+solid()
 
 // ---------- 2. track record ----------
 const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric and Nigel', 2012: 'Floods', 2016: 'Cyclone Winston' }

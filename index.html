@@ -7,113 +7,119 @@
   <meta name="description" content="Drought insurance for Fiji's sugarcane farmers that pays automatically when satellites prove a drought. No forms, no assessors, no waiting." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="#"><span class="sun" aria-hidden="true"></span>Proof of Drought</a>
+    <a class="brand" href="#"><span class="logo" aria-hidden="true"><i></i></span>Proof of Drought</a>
     <nav>
       <a href="#record">Track record</a>
       <a href="#cheat">Can it be cheated?</a>
-      <a href="#check">Check it yourself</a>
+      <a href="#check">Check the data</a>
     </nav>
   </header>
 
+  <!-- HERO: the map is the stage, the phone is the payoff -->
+  <section class="stage" id="stage">
+    <div id="map"></div>
+    <div class="shade" aria-hidden="true"></div>
+
+    <div class="pitch">
+      <p class="chip"><span class="live"></span>Drought insurance for Fiji's sugarcane farmers</p>
+      <h1>When the rain fails,<br />the money <em>arrives.</em></h1>
+      <p class="lede">Satellites watch every cane district. When two independent records agree there's a drought, a smart contract pays every insured farmer's phone. No forms. No assessors. No waiting.</p>
+      <div class="cta">
+        <button class="btn hot" id="hero-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Replay the 1998 drought</span></button>
+        <a class="btn ghost" href="#record">45 years of proof</a>
+      </div>
+    </div>
+
+    <div class="status" id="status" aria-live="polite">
+      <span class="s-month" id="pl-month">1998</span>
+      <span class="s-note" id="pl-note">Eleven months of drought, September 1997 to August 1998</span>
+    </div>
+
+    <div class="phone" aria-label="A Ba cane farmer's phone">
+      <div class="notch"></div>
+      <div class="lock">
+        <p class="l-date" id="ph-date">Fiji · 1997–98 season</p>
+        <p class="l-time" id="ph-time">Ba</p>
+        <div class="wallet"><span>Mobile wallet</span><b id="ph-bal">F$0</b></div>
+        <ol class="notifs" id="sms"><li class="idle">No alerts yet. The rain is still falling… for now.</li></ol>
+      </div>
+    </div>
+
+    <div class="dock">
+      <button class="play" id="pl-play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <div class="track">
+        <ol class="months" id="pl-months"></ol>
+        <div class="bar"><i id="pl-progress"></i></div>
+      </div>
+      <div class="count"><b id="pl-paid">F$0</b><span id="pl-farmers">paid to 0 of 96 farmers</span></div>
+      <div class="dock-more">
+        <select id="pl-year" aria-label="Season"></select>
+        <button class="lnk" id="pl-rec">On-chain record</button>
+      </div>
+    </div>
+    <div class="legend"><span><i class="w"></i>Wet</span><span><i class="n"></i>Normal</span><span><i class="d"></i>Dry</span><span><i class="s"></i>Severe drought</span><span><i class="p"></i>Paid</span></div>
+    <ol class="record" id="record-log" hidden></ol>
+  </section>
+
   <main>
-    <!-- 1. What it is + see it work -->
-    <section class="hero">
-      <div class="pitch">
-        <p class="pill">Drought insurance for Fiji's sugarcane farmers</p>
-        <h1>When the rain fails, the money arrives. <em>Automatically.</em></h1>
-        <p class="lede">Satellites watch the rain over every cane district. When two independent records agree a drought has hit, a smart contract pays every insured farmer straight to their phone. No forms, no assessors, no waiting.</p>
-        <ol class="steps">
-          <li><i aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></i><div><b>Satellites measure</b><span>rain and soil moisture, every day</span></div></li>
-          <li><i aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg></i><div><b>Two records must agree</b><span>European and American, so no one can fake it</span></div></li>
-          <li><i aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></i><div><b>Farmers get paid</b><span>straight to their phone, the same day</span></div></li>
-        </ol>
-        <div class="cta">
-          <button class="btn pri" id="hero-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Watch the 1998 drought</button>
-          <a class="btn" href="#record">See 45 years of results</a>
-        </div>
-      </div>
-
-      <div class="player" id="player">
-        <div class="pl-map"><div id="map"></div>
-          <div class="pl-now"><span id="pl-month">The 1998 drought</span><small id="pl-note">Press play to watch it month by month</small></div>
-          <div class="pl-key"><span><i style="background:#2f6f9f"></i>Wet</span><span><i style="background:#efe5d4"></i>Normal</span><span><i style="background:#e08a4a"></i>Dry</span><span><i style="background:#8a2e08"></i>Severe drought</span></div>
-          <div class="phone" aria-label="A Ba cane farmer's phone">
-            <div class="ph-bar"><span>Ba cane farmer</span><b id="ph-bal">F$0</b></div>
-            <ol class="sms" id="sms"><li class="idle">Waiting for rain…</li></ol>
-          </div>
-        </div>
-        <div class="pl-bar">
-          <button class="play" id="pl-play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-          <ol class="months" id="pl-months"></ol>
-          <div class="paid"><b id="pl-paid">F$0</b><span id="pl-farmers">paid to 0 of 96 farmers</span></div>
-        </div>
-        <div class="pl-foot">
-          <label>Year <select id="pl-year"></select></label>
-          <button class="lnk" id="pl-rec">Show the public record</button>
-        </div>
-        <ol class="record" id="record-log" hidden></ol>
-      </div>
-    </section>
-
-    <!-- The contrast that makes it matter -->
+    <!-- Then vs now -->
     <section class="contrast">
       <div class="c-row">
         <div class="c-side then">
-          <p class="tag">What actually happened in 1998</p>
+          <p class="tag">What actually happened</p>
           <ul>
-            <li><b>Sep 1997</b>The drought begins in Fiji's west</li>
-            <li><b>Sep 1998</b>A year later, Fiji declares a disaster</li>
-            <li><b>By then</b>90% of people in the worst-hit west were on food and water rations</li>
+            <li><b>Sep 1997</b><span>The drought begins in Fiji's west</span></li>
+            <li><b>Sep 1998</b><span>A year later, Fiji declares a disaster</span></li>
+            <li><b>Meanwhile</b><span>90% of people in the worst-hit west on food and water rations</span></li>
           </ul>
         </div>
-        <div class="c-mid" aria-hidden="true">vs</div>
+        <div class="c-vs" aria-hidden="true">vs</div>
         <div class="c-side now">
           <p class="tag">With Proof of Drought</p>
           <ul>
-            <li><b>Jan 1998</b>F$300 per farmer in 7 of 8 districts, while there's still time to save stock and replant</li>
-            <li><b>Apr 1998</b>The rest: F$1,000 per farmer in every cane district</li>
-            <li><b>8 months</b>before the disaster declaration</li>
+            <li><b>Jan 1998</b><span>F$300 per farmer in 7 of 8 districts, in time to save stock and replant</span></li>
+            <li><b>Apr 1998</b><span>The rest: F$1,000 per farmer in every cane district</span></li>
+            <li><b>8 months</b><span>before the disaster was declared</span></li>
           </ul>
         </div>
       </div>
-      <p class="src">Source: UN OCHA, Fiji Drought Situation Report No. 2 (16 December 1998). Payout dates: this project's test on real Copernicus and NASA data.</p>
+      <p class="src">Source: UN OCHA, Fiji Drought Situation Report No. 2, 16 December 1998. Payout dates: this project's test on real Copernicus and NASA data.</p>
     </section>
 
-    <!-- 2. Track record -->
+    <!-- Track record -->
     <section class="record-sec" id="record">
       <div class="head">
         <p class="eyebrow">Track record</p>
-        <h2>Would it have worked? We tested it on 45 years of real weather.</h2>
-        <p>Each square is one season since 1982. Green means the cover paid out. A red dot means Fiji's cane harvest actually fell that year.</p>
+        <h2>Would it have worked? We ran it on 45 years of real weather.</h2>
+        <p>Each square is one season since 1982. Green: the cover paid out. Red dot: Fiji's cane harvest really fell that year.</p>
       </div>
       <div class="years" id="years"></div>
-      <div class="ykey"><span><i class="sq hi"></i>Paid a lot</span><span><i class="sq lo"></i>Paid a little</span><span><i class="sq"></i>Paid nothing</span><span><i class="dot"></i>Harvest fell 10%+</span><span><i class="sq storm"></i>Cyclone or flood year</span></div>
+      <div class="ykey"><span><i class="sq hi"></i>Paid a lot</span><span><i class="sq lo"></i>Paid a little</span><span><i class="sq"></i>Paid nothing</span><span><i class="dot"></i>Harvest fell 10%+</span><span><i class="sq storm"></i>Cyclone or flood</span></div>
       <div class="takeaways" id="takeaways"></div>
-
       <div class="calc">
-        <div><h3>What would you have received?</h3><p>Pick a district. This is every payout the rules would have made for F$1,000 of cover.</p>
+        <div><h3>What would you have received?</h3><p>Every payout the rules would have made for F$1,000 of cover since 1982.</p>
           <select id="f-dist" aria-label="District"></select></div>
         <div class="calc-out" id="calc"></div>
       </div>
     </section>
 
-    <!-- 3. Cheat -->
+    <!-- Cheat -->
     <section class="cheat" id="cheat">
       <div class="head">
         <p class="eyebrow">Can it be cheated?</p>
-        <h2>You hacked the European satellite feed. Try to fake a drought.</h2>
-        <p>Ba, the 2010–11 season: a normal, wet year. Drag the slider to report less rain than really fell, then try to claim the payout.</p>
+        <h2>You've hacked the European satellite feed. Fake a drought.</h2>
+        <p>Ba, 2010–11: a normal, wet season. Report less rain than really fell, then try to claim the payout.</p>
       </div>
       <div class="game">
         <div class="ctl">
           <label for="g-rain">Rain you report <b id="g-rain-v">100% of what fell</b></label>
           <input type="range" id="g-rain" min="0" max="100" value="100" step="5" />
           <label class="tog"><input type="checkbox" id="g-both" /><span>Also hack NASA's feed</span></label>
-          <button class="btn pri" id="g-go">Claim the payout</button>
+          <button class="btn hot" id="g-go">Claim the payout</button>
           <div class="result" id="g-result"></div>
         </div>
         <div class="shields">
@@ -124,16 +130,16 @@
       </div>
     </section>
 
-    <!-- 4. Check -->
+    <!-- Check -->
     <section class="check" id="check">
       <div class="head">
-        <p class="eyebrow">Check it yourself</p>
-        <h2>Don't trust us. Check the data.</h2>
-        <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus and NASA right now, and see if it matches.</p>
+        <p class="eyebrow">Check the data</p>
+        <h2>Don't trust us. Check it.</h2>
+        <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus and NASA, right now, and see if it matches.</p>
       </div>
       <div class="ck">
-        <div class="ck-ask"><span id="ck-what">Ba, November 1997 – April 1998</span><button class="btn pri" id="ck-go">Download and check</button>
-          <button class="lnk" id="ck-other">Check another district or year</button></div>
+        <div class="ck-ask"><span id="ck-what">Ba, November 1997 – April 1998</span><button class="btn dark" id="ck-go">Download and check</button>
+          <button class="lnk" id="ck-other">Pick another district or year</button></div>
         <div class="ck-pick" id="ck-pick" hidden>
           <label>District <select id="ck-dist"></select></label>
           <label>Season <select id="ck-season"></select></label>
@@ -142,14 +148,13 @@
       </div>
     </section>
 
-    <!-- 5. Honest footer -->
     <section class="real">
       <div class="r-grid">
         <div><h3>Real</h3><p>45 years of daily rainfall and soil moisture for Fiji's 8 cane districts from Copernicus ERA5 and NASA POWER · Fiji's cane harvests (FAOSTAT) · the 1998 timeline (UN OCHA) · the smart contract, running on a real Ethereum virtual machine in your browser</p></div>
         <div><h3>Simulated</h3><p>The 96 farmers, their wallets and the money are test versions · district points are approximate · the payout rules are this project's proposal; a real scheme would set them with an insurer and the regulator</p></div>
         <div><h3>Built for COP31</h3><p>COP31 meets in Antalya in November 2026. Its Pre-COP ministers met in October in Nadi, Fiji, one of the eight districts this cover protects. It builds on parametric insurance already working in the Pacific (PCRIC, UNDP's PICAP).</p></div>
       </div>
-      <p class="foot">Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Yields: FAOSTAT. Basemap © OpenFreeMap, © OpenStreetMap contributors.</p>
+      <p class="foot">Satellite basemap: Sentinel-2 cloudless – <a href="https://s2maps.eu">https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0. Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Yields: FAOSTAT.</p>
       <p class="foot">Built by Tia · IEEE ClimateChain Global Hackathon 2026, Climate Data &amp; Environmental Monitoring · <a href="https://github.com/tiasella1802-alt/Proof-of-drought">Source code</a></p>
     </section>
   </main>
