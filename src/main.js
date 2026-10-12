@@ -9,300 +9,305 @@ maplibregl.setWorkerUrl(workerUrl) // Vite's dependency bundling hides MapLibre'
 
 const $ = (id) => document.getElementById(id)
 const get = (f) => fetch(`/data/${f}`).then((r) => r.json())
-const [IDX, GUARD, DAYS, YIELD, ART] = await Promise.all(['index.json', 'guard.json', 'days.json', 'yield.json', 'contract.json'].map(get))
-const D = IDX.districts, KEYS = D.map((d) => d.key)
+const [IDX, GUARD, DAYS, ART] = await Promise.all(['index.json', 'guard.json', 'days.json', 'contract.json'].map(get))
+const D = IDX.districts, KEYS = D.map((d) => d.key), BA = KEYS.indexOf('ba')
 const SEASON = Object.fromEntries(IDX.seasons.map((s) => [s.season, s]))
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const F = (n) => `F$${Math.round(n).toLocaleString()}`
-const pm = (x) => Math.round(x * 1000) // dryness 0..1 → per mille, as the contract wants
-const ord = (x) => { const n = Math.max(1, Math.round(x * 100)), s = n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'; return `${n}${s}` }
+const pm = (x) => Math.round(x * 1000) // 0..1 → per mille, as the contract wants
 const short = (h) => `${h.slice(0, 8)}…${h.slice(-4)}`
 const opts = (el, list, sel) => (el.innerHTML = list.map(([v, t]) => `<option value="${v}"${v == sel ? ' selected' : ''}>${t}</option>`).join(''))
+const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// Dryness percentile → colour (driest = burnt red, middle = sand, wettest = blue).
-const STOPS = [[0, [122, 32, 6]], [0.15, [194, 65, 12]], [0.35, [233, 185, 138]], [0.55, [239, 229, 212]], [0.8, [158, 195, 220]], [1, [47, 111, 159]]]
+// Plain words for an index (0 = driest season in the 1991–2020 record, 1 = wettest).
+const drierThan = (x) => `drier than ${Math.min(99, Math.round((1 - x) * 100))}% of years in the 30-year record`
+const kind = (x) => (x <= 0.1 ? 'severe drought' : x <= 0.2 ? 'drought' : x <= 0.35 ? 'dry' : x <= 0.65 ? 'normal' : 'wet')
+const was = (x) => (x <= 0.2 ? `a ${kind(x)}` : kind(x)) // "was a drought" but "was wet"
+const STOPS = [[0, [122, 32, 6]], [0.12, [170, 50, 10]], [0.25, [224, 138, 74]], [0.45, [239, 229, 212]], [0.75, [150, 190, 218]], [1, [47, 111, 159]]]
 function colour(x) {
   let i = 0
   while (i < STOPS.length - 2 && x > STOPS[i + 1][0]) i++
   const [a, ca] = STOPS[i], [b, cb] = STOPS[i + 1], t = Math.min(1, Math.max(0, (x - a) / (b - a)))
   return `rgb(${ca.map((v, k) => Math.round(v + (cb[k] - v) * t)).join(',')})`
 }
-const textOn = (x) => (x < 0.3 || x > 0.75 ? '#fff' : '#1f1a14')
 
-// ---------- the in-browser chain: one insurer, two oracles, 12 test farmers per district, F$1,000 cover each ----------
+// ---------- the in-browser chain: one insurer, two data oracles, test farmers with F$1,000 cover each ----------
 const UNIT = 10n ** 18n, COVER = 1000n
 const K = { insurer: demoKey('insurer'), era5: demoKey('era5 oracle'), power: demoKey('nasa oracle') }
-const farmerKey = (d, i) => demoKey(`farmer ${d}-${i}`)
-async function newChain(farmersPerDistrict = 12) {
+async function newChain(perDistrict) {
   const c = await chain()
   for (const k of Object.values(K)) await c.fund(addressOf(k), 10n ** 9n * UNIT)
   const dc = await c.deploy(K.insurer, ART, [addressOf(K.era5), addressOf(K.power)])
-  await c.transfer(K.insurer, dc.address, 500_000n * UNIT) // the pool
-  for (let d = 0; d < D.length; d++) for (let i = 0; i < farmersPerDistrict; i++) await dc.write(K.insurer, 'issue', [addressOf(farmerKey(d, i)), d, COVER * UNIT])
+  await c.transfer(K.insurer, dc.address, 500_000n * UNIT)
+  for (let d = 0; d < D.length; d++) for (let i = 0; i < perDistrict; i++) await dc.write(K.insurer, 'issue', [addressOf(demoKey(`farmer ${d}-${i}`)), d, COVER * UNIT])
   return { c, dc }
 }
 
-// ---------- 1. replay ----------
-const STORY = { 1983: 'El Niño', 1987: 'El Niño', 1992: 'El Niño', 1998: 'El Niño · 11-month drought', 2010: 'El Niño', 2016: 'El Niño + Cyclone Winston' }
-const BA = KEYS.indexOf('ba')
-let run = 0, playing = false, step = -1, season = 1998, state = null, markers = []
+// ---------- 1. the player ----------
+const YEARS = Object.keys(IDX.replays).map(Number)
+const LABEL = { 1983: '1983 · El Niño', 1987: '1987 · El Niño', 1992: '1992 · El Niño', 1998: '1998 · the big drought', 2010: '2010 · El Niño', 2016: '2016 · El Niño + Cyclone Winston' }
+opts($('pl-year'), YEARS.map((y) => [y, LABEL[y] ?? y]), 1998)
+let run = 0, playing = false, step = -1, year = 1998, st = null, markers = []
+const monthName = (i) => { const m = [11, 12, 1, 2, 3, 4][i]; return `${MONTHS[m - 1]} ${m >= 11 ? year - 1 : year}` }
 
-const map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', bounds: [[177.15, -18.45], [179.7, -16.15]],
-  fitBoundsOptions: { padding: 40 }, attributionControl: { compact: true }, cooperativeGestures: true })
-map.on('load', () => {
-  markers = D.map((d) => {
-    const el = document.createElement('div')
-    el.className = 'dmk'
-    el.innerHTML = `<i></i><span>${d.name}</span>`
-    return new maplibregl.Marker({ element: el, anchor: 'top' }).setLngLat([d.lon, d.lat]).addTo(map)
-  })
-  paintMonth()
+const map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', bounds: [[177.1, -18.5], [179.75, -16.1]],
+  fitBoundsOptions: { padding: { top: 100, bottom: 50, left: 30, right: 250 } }, attributionControl: { compact: true }, cooperativeGestures: true })
+// Markers are plain HTML, so they show straight away instead of waiting for every map tile.
+markers = D.map((d) => {
+  const el = document.createElement('div')
+  el.className = 'dot-m'
+  el.innerHTML = `<i></i><span>${d.name}</span>`
+  return new maplibregl.Marker({ element: el, anchor: 'top' }).setLngLat([d.lon, d.lat]).addTo(map)
 })
 
-$('seasons').innerHTML = Object.keys(IDX.replays).map((y) => `<button data-y="${y}" class="${+y === season ? 'on' : ''}">${y}<small>${STORY[y] ?? ''}</small></button>`).join('')
-$('seasons').onclick = (e) => { const b = e.target.closest('button'); if (b) startSeason(+b.dataset.y) }
-const monthName = (y, i) => { const m = [11, 12, 1, 2, 3, 4][i]; return `${MONTHS[m - 1]} ${m >= 11 ? y - 1 : y}` }
-
-function renderMonths() {
-  $('rp-months').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
-    `${monthName(season, i).split(' ')[0]}<small>${i === 2 ? 'early check' : i === 5 ? 'final check' : '&nbsp;'}</small></li>`).join('')
-}
-function paintMonth() {
-  const rows = step >= 0 ? IDX.replays[season][step].districts : null
+function paint() {
+  const rows = step >= 0 ? IDX.replays[year][step].districts : null
   markers.forEach((m, k) => {
-    const el = m.getElement(), x = rows?.[k].index
-    el.querySelector('i').style.background = x == null ? '#cfc3b0' : colour(x)
-    el.querySelector('i').style.color = x == null ? '#1f1a14' : textOn(x)
-    el.querySelector('i').textContent = x == null ? '—' : ord(x)
-    el.classList.toggle('paid', !!state?.paidDistricts.has(k))
+    const el = m.getElement()
+    el.querySelector('i').style.background = rows ? colour(rows[k].index) : '#d9cfc0'
+    el.classList.toggle('paid', !!st?.paidD.has(k))
   })
-  $('rp-month').textContent = step >= 0 ? monthName(season, step) : `Season ${season - 1}–${String(season).slice(2)}`
-  renderMonths()
+  $('pl-months').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
+    `${monthName(i).split(' ')[0]}<small>${i === 2 ? 'early check' : i === 5 ? 'final check' : ''}</small></li>`).join('')
+  if (step < 0) {
+    $('pl-month').textContent = year === 1998 ? 'The 1998 drought' : `The ${year} season`
+    $('pl-note').textContent = 'Press play to watch it month by month'
+    return
+  }
+  const severe = rows.filter((r) => r.index <= 0.1).length, dry = rows.filter((r) => r.index <= 0.2).length
+  $('pl-month').textContent = monthName(step)
+  $('pl-note').textContent = severe ? `${severe} of 8 districts in severe drought` : dry ? `${dry} of 8 districts in drought` : 'Rain looks normal across the cane belt'
 }
-function log(cls, block, text) {
-  const li = document.createElement('li')
-  li.className = cls
-  li.innerHTML = `<i>#${block}</i><span>${text}</span>`
-  $('ledger').prepend(li)
-}
+
 function sms(html) {
   const ol = $('sms')
-  ol.querySelector('.sys')?.remove()
+  ol.querySelector('.idle')?.remove()
   const li = document.createElement('li')
   li.innerHTML = html
   ol.append(li)
   ol.scrollTop = ol.scrollHeight
 }
-function totals() {
-  $('t-farmers').textContent = state.farmersPaid.size
-  $('t-paid').textContent = F(state.paid)
-  $('t-block').textContent = `#${state.c.block}`
+function log(cls, block, text) {
+  const li = document.createElement('li')
+  li.className = cls
+  li.innerHTML = `<i>#${block}</i><span>${text}</span>`
+  $('record-log').prepend(li)
+}
+function tally() {
+  $('pl-paid').textContent = F(st.paid)
+  $('pl-farmers').textContent = `paid to ${st.farmers.size} of ${D.length * 12} farmers`
 }
 
-async function startSeason(y) {
+async function load(y) {
   const my = ++run
-  season = y, step = -1, playing = false
-  $('rp-play').textContent = '▶ Play'
-  for (const b of $('seasons').children) b.classList.toggle('on', +b.dataset.y === y)
-  $('ledger').innerHTML = ''
-  $('sms').innerHTML = '<li class="sys">No messages yet.</li>'
+  year = y, step = -1, playing = false
+  setPlay(false)
+  $('sms').innerHTML = '<li class="idle">Waiting for rain…</li>'
   $('ph-bal').textContent = 'F$0'
-  $('chain-st').textContent = 'starting the chain…'
-  state = null
-  paintMonth()
-  const { c, dc } = await newChain()
+  $('record-log').innerHTML = ''
+  $('pl-paid').textContent = 'F$0'
+  $('pl-farmers').textContent = 'starting the blockchain…'
+  st = null
+  paint()
+  const { c, dc } = await newChain(12)
   if (my !== run) return
-  state = { c, dc, paid: 0, farmersPaid: new Set(), paidDistricts: new Set(), ba: 0 }
-  $('chain-st').textContent = `contract ${short(dc.address)}`
-  log('rep', dc.deployTx.block, `DroughtCover deployed · ${D.length * 12} farmers covered · pool F$500,000`)
-  totals()
+  st = { c, dc, paid: 0, farmers: new Set(), paidD: new Set(), ba: 0 }
+  log('', dc.deployTx.block, `Contract deployed · ${D.length * 12} test farmers insured for F$1,000 each`)
+  tally()
 }
 
-// One checkpoint: both oracles post each district's reading; the contract settles and pays.
+// A checkpoint: both data sources post each district's reading; the contract decides and pays.
 async function checkpoint(stage, my) {
-  const rows = SEASON[season]?.[stage]
+  const rows = SEASON[year]?.[stage]
   if (!rows) return
   for (let k = 0; k < rows.length; k++) {
     if (my !== run) return
     const r = rows[k], s = stage === 'early' ? 0 : 1
-    await state.dc.write(K.era5, 'report', [season, s, k, pm(r.sources.era5.dryness), r.sources.era5.hash])
-    const res = await state.dc.write(K.power, 'report', [season, s, k, pm(r.sources.power.dryness), r.sources.power.hash])
+    await st.dc.write(K.era5, 'report', [year, s, k, pm(r.sources.era5.dryness), r.sources.era5.hash])
+    const res = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), r.sources.power.hash])
     const settled = res.events.find((e) => e.name === 'Settled'), paid = res.events.filter((e) => e.name === 'Paid')
-    const disagree = res.events.some((e) => e.name === 'SourcesDisagree')
-    const name = D[k].name, idx = Number(settled.args.index) / 1000
-    if (disagree) log('bad', res.block, `${name}: sources disagree (${pm(r.sources.era5.dryness)} vs ${pm(r.sources.power.dryness)}) · nothing paid`)
+    const idx = Number(settled.args.index) / 1000, name = D[k].name
+    if (res.events.some((e) => e.name === 'SourcesDisagree')) log('bad', res.block, `${name} · the two records disagree · nothing paid`)
     else if (paid.length) {
       const amt = paid.reduce((a, e) => a + Number(e.args.amount / UNIT), 0)
-      state.paid += amt
-      paid.forEach((e) => state.farmersPaid.add(Number(e.args.id)))
-      state.paidDistricts.add(k)
-      log('pay', res.block, `${name}: ${ord(idx)} driest → ${Number(settled.args.share) / 10}% of cover · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
+      st.paid += amt
+      paid.forEach((e) => st.farmers.add(Number(e.args.id)))
+      st.paidD.add(k)
+      log('pay', res.block, `${name} · both records agree: ${kind(idx)} · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
+      const m = markers[k]?.getElement()
+      m?.classList.add('flash'); setTimeout(() => m?.classList.remove('flash'), 400)
       if (k === BA) {
         const each = Number(paid[0].args.amount / UNIT)
-        state.ba += each
-        $('ph-bal').textContent = F(state.ba)
+        st.ba += each
+        $('ph-bal').textContent = F(st.ba)
+        $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 350)
         sms(stage === 'early'
-          ? `Proof of Drought: rain and soil moisture at Ba since November are among the <b>driest ${Math.max(1, Math.round(idx * 100))}%</b> of seasons on record. Copernicus and NASA agree. <b>${F(each)}</b> (30% of your cover) is in your wallet now, for water, feed and seed. Final check end of April.<small>block #${res.block} · ${short(res.hash)}</small>`
-          : `Proof of Drought: the season ended among the <b>driest ${Math.max(1, Math.round(idx * 100))}%</b> on record at Ba. <b>${F(each)}</b> sent, bringing you to ${F(state.ba)} this season.<small>block #${res.block} · ${short(res.hash)}</small>`)
+          ? `<b>Drought alert for Ba.</b> Since November it's been ${drierThan(idx)}. Both satellite records agree. <b>${F(each)} has been sent to you</b> for water, feed and seed.`
+          : `<b>Season over.</b> Ba finished ${drierThan(idx)}. <b>${F(each)} more sent</b>: ${F(st.ba)} this season.`)
       }
     } else {
-      log('rep', res.block, `${name}: ${ord(idx)} percentile · no payout due`)
-      if (k === BA && stage === 'final' && !state.ba) sms(`Proof of Drought: Ba's season ended at the ${ord(idx)} percentile, not a drought. No payout this season.<small>block #${res.block}</small>`)
+      log('', res.block, `${name} · ${kind(idx)} · no payout needed`)
+      if (k === BA && stage === 'final' && !st.ba) sms(`<b>Season over.</b> Ba had a ${kind(idx)} season. No payout needed this year.`)
     }
-    totals()
-    paintMonth()
-    await new Promise((r) => setTimeout(r, 120))
+    tally()
+    paint()
+    await wait(110)
   }
 }
 
 async function advance() {
-  if (!state || step >= 5) return false
+  if (!st || step >= 5) return false
   const my = run
   step++
-  paintMonth()
+  paint()
   if (step === 2) await checkpoint('early', my)
   if (step === 5) await checkpoint('final', my)
   return my === run
 }
-$('rp-play').onclick = async () => {
-  if (playing) { playing = false; $('rp-play').textContent = '▶ Play'; return }
-  if (!state) return
-  if (step >= 5) await startSeason(season)
+function setPlay(on) {
+  $('pl-play').classList.toggle('on', on)
+  $('pl-play').innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
+  $('pl-play').setAttribute('aria-label', on ? 'Pause' : 'Play')
+}
+async function play() {
+  if (playing) return (playing = false), setPlay(false)
+  while (!st) await wait(100)
+  if (step >= 5) await load(year)
+  while (!st) await wait(100)
   playing = true
-  $('rp-play').textContent = '❚❚ Pause'
+  setPlay(true)
   const my = run
   while (playing && my === run && step < 5) {
     if (!(await advance())) return
-    await new Promise((r) => setTimeout(r, 1300))
+    await wait(1200)
   }
-  if (my === run) playing = false, $('rp-play').textContent = step >= 5 ? '↻ Replay' : '▶ Play'
+  if (my === run) playing = false, setPlay(false)
 }
-$('rp-months').onclick = async (e) => {
+$('pl-play').onclick = play
+$('hero-play').onclick = () => { $('player').scrollIntoView({ behavior: 'smooth', block: 'center' }); if (!playing) play() }
+$('pl-year').oninput = () => load(+$('pl-year').value)
+$('pl-months').onclick = async (e) => {
   const i = +e.target.closest('li')?.dataset.i
-  if (!state || Number.isNaN(i) || playing) return
-  while (step < i) if (!(await advance())) return
+  if (!st || Number.isNaN(i) || playing) return
+  if (i < step) await load(year)
+  while (st && step < i) if (!(await advance())) return
 }
-startSeason(season)
+$('pl-rec').onclick = () => {
+  const el = $('record-log'), show = el.hidden
+  el.hidden = !show
+  $('pl-rec').textContent = show ? 'Hide the public record' : 'Show the public record'
+}
+load(1998)
 
-// ---------- 2. 45-year backtest ----------
-const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric & Nigel', 2012: 'Floods', 2016: 'Cyclone Winston' }
+// ---------- 2. track record ----------
+const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric and Nigel', 2012: 'Floods', 2016: 'Cyclone Winston' }
 {
   const S = IDX.seasons.filter((s) => s.final)
+  $('years').innerHTML = S.map((s) => {
+    const p = s.payout, fell = s.yieldChange != null && s.yieldChange <= -0.1
+    const tip = `${s.season}: paid ${Math.round(p * 100)}% of cover` + (s.yieldChange == null ? '' : ` · cane harvest ${s.yieldChange >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}%`) + (STORM[s.season] ? ` · ${STORM[s.season]}` : '')
+    return `<div class="yr${p >= 0.4 ? ' hi' : p > 0 ? ' lo' : ''}${STORM[s.season] ? ' storm' : ''}" title="${tip}">’${String(s.season).slice(2)}${fell ? '<i class="dot"></i>' : ''}</div>`
+  }).join('')
+  const falseAlarms = S.filter((s) => s.payout >= 0.25 && s.yieldChange != null && s.yieldChange >= 0).map((s) => s.season)
   const caught = DROUGHT.filter((y) => SEASON[y].payout > 0)
-  const falseAlarms = S.filter((s) => s.payout >= 0.25 && s.yieldChange != null && s.yieldChange >= 0)
-  const avg = S.reduce((a, s) => a + s.payout, 0) / S.length
-  $('stats').innerHTML =
-    `<div class="stat good"><b>${caught.length} of ${DROUGHT.length}</b><span>El Niño drought losses paid: ${DROUGHT.map((y) => `${y} (${Math.round(SEASON[y].payout * 100)}%)`).join(', ')}</span></div>` +
-    `<div class="stat good"><b>${Object.keys(STORM).map((y) => `${Math.round(SEASON[y].payout * 100)}%`).join(' · ')}</b><span>paid in the cyclone and flood loss years ${Object.keys(STORM).join(', ')}: another peril, another product</span></div>` +
-    `<div class="stat bad"><b>${falseAlarms.length}</b><span>false alarms: ${falseAlarms.map((s) => `${s.season} paid ${Math.round(s.payout * 100)}%, yields ${s.yieldChange >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}%`).join('; ')}</span></div>` +
-    `<div class="stat"><b>${(avg * 100).toFixed(1)}%</b><span>of cover paid out per year on average: the fair price before costs (${F(avg * 1000)} a year for F$1,000)</span></div>`
-
-  // Two bands sharing the season axis: payouts on top (0–100%), cane yield change below (−45% to +30%, zero line in the middle).
-  const W = 1100, H = 340, L = 52, top = 22, payBase = 150, y0 = 248, scale = 150, step = (W - L - 10) / S.length
-  const x = (i) => L + i * step + step * 0.15, bw = step * 0.7
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Payouts and cane yield changes by season, 1982 to ${S.at(-1).season}">`
-  S.forEach((s, i) => { if (STORM[s.season]) svg += `<rect x="${L + i * step}" y="${top}" width="${step}" height="${H - top - 24}" fill="#c7d6e2" opacity=".5"/>` })
-  svg += `<line x1="${L}" x2="${W - 10}" y1="${payBase}" y2="${payBase}" stroke="#1f1a14"/><line x1="${L}" x2="${W - 10}" y1="${y0}" y2="${y0}" stroke="#9a8d7c" stroke-dasharray="3 3"/>`
-  svg += `<text x="4" y="${top + 8}">100%</text><text x="4" y="${payBase - 4}">paid 0%</text><text x="4" y="${y0 - 3}">yield ±0</text><text x="4" y="${y0 + 0.4 * scale}">−40%</text>`
-  let lastLabel = -9
-  S.forEach((s, i) => {
-    const h = s.payout * (payBase - top - 12)
-    svg += `<rect x="${x(i)}" y="${payBase - h}" width="${bw}" height="${h}" fill="#17603a"><title>${s.season}: paid ${Math.round(s.payout * 100)}% of cover</title></rect>`
-    if (s.yieldChange != null) {
-      const v = Math.max(-0.45, Math.min(0.3, s.yieldChange)), yh = Math.abs(v) * scale
-      svg += `<rect x="${x(i)}" y="${v < 0 ? y0 : y0 - yh}" width="${bw}" height="${yh}" fill="${v < 0 ? '#b4410f' : '#d9c7ad'}"><title>${s.season}: cane yield ${v >= 0 ? '+' : ''}${Math.round(s.yieldChange * 100)}% vs nearby seasons</title></rect>`
-    }
-    const key = DROUGHT.includes(s.season) || STORM[s.season]
-    if ((key || s.season % 5 === 0) && s.season - lastLabel >= 2) svg += `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle">${s.season}</text>`, (lastLabel = s.season)
-    if (DROUGHT.includes(s.season)) svg += `<text class="lbl" x="${x(i) + bw / 2}" y="${payBase - h - 6}" text-anchor="middle">${Math.round(s.payout * 100)}%</text>`
-    if (STORM[s.season]) svg += `<text class="lbl" x="${L + i * step + step / 2}" y="${top + 12}" text-anchor="middle" style="font-size:9px">${STORM[s.season].split(' ')[0]}</text>`
-  })
-  $('chart').innerHTML = svg + '</svg>'
+  $('takeaways').innerHTML =
+    `<div class="tk good"><b>Paid in all ${caught.length} drought years</b><p>${caught.join(', ')}: every El Niño drought that cut Fiji's cane harvest.</p></div>` +
+    `<div class="tk good"><b>Quiet when it wasn't drought</b><p>Cyclones and floods in ${Object.keys(STORM).join(', ')} hurt harvests too, but need a different kind of cover. It paid ${Object.keys(STORM).map((y) => `${Math.round(SEASON[y].payout * 100)}%`).join(', ')}.</p></div>` +
+    `<div class="tk meh"><b>${falseAlarms.length} false alarms in ${S.length} years</b><p>${falseAlarms.join(' and ')} paid out in seasons with normal harvests. We show them, because insurance that hides its mistakes isn't worth trusting.</p></div>`
 }
+opts($('f-dist'), D.map((d, k) => [k, d.name]), BA)
+function calc() {
+  const k = +$('f-dist').value, S = IDX.seasons.filter((s) => s.final)
+  const got = S.map((s) => 1000 * Math.max(s.early?.[k].due ?? 0, s.final[k].due))
+  const total = got.reduce((a, b) => a + b, 0), times = got.filter((g) => g > 0).length
+  $('calc').innerHTML = `<div><b>${F(total)}</b><span>received over ${S.length} years</span></div><div><b>${times}</b><span>payouts, in the worst seasons</span></div>` +
+    `<div><b>${F(total / S.length)}</b><span>a year: the fair price of the cover, before costs</span></div>`
+}
+$('f-dist').oninput = calc
+calc()
 
-// ---------- 3. try to cheat ----------
-const NORMAL = Object.keys(DAYS).map(Number)
-opts($('c-dist'), D.map((d, k) => [k, d.name]), BA)
-opts($('c-season'), NORMAL.map((y) => [y, `${y - 1}–${String(y).slice(2)}${y === 2011 ? ' (a normal season)' : STORY[y] ? ` (${STORY[y]})` : ''}`]), 2011)
-let cheatChain = null
-const cheatState = () => {
-  const k = +$('c-dist').value, y = +$('c-season').value, src = $('c-src').value, other = src === 'era5' ? 'power' : 'era5'
-  const f = +$('c-rain').value / 100, ds = +$('c-soil').value, both = $('c-both').checked
-  // The two sources measure soil on different scales (ERA5-Land m³/m³, NASA a 0–1 wetness index), so a careful attacker
-  // scales the soil edit to each source's own spread in the baseline, making the two fakes agree.
+// ---------- 3. can it be cheated? (Ba, the 2010–11 season: a normal, wet year) ----------
+const G = { k: BA, y: 2011, src: 'era5', other: 'power' }
+let gameChain = null
+function attack() {
+  const { k, y, src, other } = G, f = +$('g-rain').value / 100, both = $('g-both').checked
+  // A careful attacker lowers soil moisture along with the rain, scaled to each record's own spread (the two use different units).
   const spread = (s) => { const v = GUARD.sources[s].base[k].soil, m = v.reduce((a, b) => a + b, 0) / v.length; return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length) }
-  const fake = (rows, s = src) => { const d = ds * spread(s) / spread(src)
+  const fake = (rows, s) => { const d = (1 - f) * 2.5 * spread(s)
     return rows.map(([t, r, x]) => inSeason(t, y) ? [t, r == null ? r : +(r * f).toFixed(2), x == null ? x : +(x - d).toFixed(4)] : [t, r, x]) }
-  const guardFor = (s, rows) => {
+  const judge = (s, rows) => {
     const g = GUARD.sources[s], seasons = KEYS.map((key) => seasonAgg(DAYS[y][key][s], y))
     seasons[k] = seasonAgg(rows, y)
-    const x = features(k, seasons, g.base, rows, y, g.physics[k]), sc = score(x, g.model)
-    const [rain, soil] = seasons[k], dry = (pct(rain, g.base[k].rain) + pct(soil, g.base[k].soil)) / 2
-    return { score: sc, threshold: g.threshold, flagged: sc > g.threshold, dry }
+    const sc = score(features(k, seasons, g.base, rows, y, g.physics[k]), g.model), [rain, soil] = seasons[k]
+    return { score: sc, limit: g.threshold, flagged: sc > g.threshold, dry: (pct(rain, g.base[k].rain) + pct(soil, g.base[k].soil)) / 2 }
   }
   const real = SEASON[y].final[k]
-  const mine = guardFor(src, fake(DAYS[y][KEYS[k]][src]))
-  const theirs = both ? guardFor(other, fake(DAYS[y][KEYS[k]][other], other)) : { dry: real.sources[other].dryness, flagged: false, honest: true }
-  return { k, y, src, other, both, tampered: f < 1 || ds > 0, mine, theirs, real }
+  const mine = judge(src, fake(DAYS[y][KEYS[k]][src], src))
+  const theirs = both ? judge(other, fake(DAYS[y][KEYS[k]][other], other)) : { dry: real.sources[other].dryness, flagged: false }
+  const gap = Math.abs(pm(mine.dry) - pm(theirs.dry)), index = (mine.dry + theirs.dry) / 2
+  return { f, both, tampered: f < 1, mine, theirs, real, gap, agree: gap <= 250, wouldPay: gap <= 250 && index <= 0.2 }
 }
-function renderCheat() {
-  const s = cheatState(), name = D[s.k].name, gap = Math.abs(pm(s.mine.dry) - pm(s.theirs.dry))
-  $('c-rain-v').textContent = `${$('c-rain').value}%`
-  $('c-soil-v').textContent = (+$('c-soil').value).toFixed(2)
-  const l1 = $('lock1'), l2 = $('lock2'), l3 = $('lock3')
-  const fill = Math.min(100, (s.mine.score / (s.mine.threshold * 2)) * 100)
-  l1.querySelector('.meter i').style.width = `${fill}%`
-  l1.querySelector('.meter i').style.background = s.mine.flagged ? 'var(--dry)' : 'var(--paid)'
-  l1.querySelector('.meter b').style.left = '50%'
-  const flagged = s.mine.flagged || (s.both && s.theirs.flagged)
-  l1.className = `lock ${!s.tampered ? '' : flagged ? 'held' : 'broken'}`
-  l1.querySelector('p').innerHTML = !s.tampered ? 'Trained on 30 years of real data from all eight districts. Change the sliders to fake a drought.'
-    : flagged ? `<b>Flagged.</b> Anomaly score ${s.mine.score.toFixed(1)} (limit ${s.mine.threshold.toFixed(1)}): this doesn't behave like real ${name} weather. ${s.both ? 'Public watchdogs running this model flag the payout for investigation.' : 'An honest oracle would refuse to post it, and public watchdogs flag it.'}`
-    : `<b>Not flagged</b> (score ${s.mine.score.toFixed(1)}, limit ${s.mine.threshold.toFixed(1)}). A subtle fake can slip past the model, so it is never the only lock.`
-  l2.className = `lock ${!s.tampered ? '' : gap > 250 ? 'held' : 'broken'}`
-  l2.querySelector('p').innerHTML = !s.tampered ? `Your feed: ${ord(s.mine.dry)} percentile. The other: ${ord(s.theirs.dry)}. The contract pays only if they agree within 25 points.`
-    : s.both ? (gap > 250
-      ? `<b>Held.</b> You control both feeds, but your two fakes still disagree (${ord(s.mine.dry)} vs ${ord(s.theirs.dry)}): the same edit lands differently on two independent records. The contract refuses.`
-      : `<b>Bypassed:</b> you control both feeds and made them agree (${ord(s.mine.dry)} vs ${ord(s.theirs.dry)}). This is why the two sources come from different agencies on different continents.`)
-    : gap > 250 ? `<b>Held.</b> Your fake says ${ord(s.mine.dry)} percentile; the independent ${s.other === 'power' ? 'NASA' : 'Copernicus'} record says ${ord(s.theirs.dry)}. ${(gap / 10).toFixed(0)} points apart: the contract refuses.`
-    : `<b>Not blocked:</b> your fake (${ord(s.mine.dry)}) is within 25 points of the honest record (${ord(s.theirs.dry)}), so a drought this mild is what the data already says.`
-  l3.className = `lock ${s.tampered ? 'held' : ''}`
-  l3.querySelector('p').innerHTML = s.tampered ? `<b>Permanent evidence.</b> Your reading's fingerprint no longer matches the public archive. Anyone who re-downloads ${name}'s data can prove the fraud, forever, from the ledger.`
-    : 'Every reading on the ledger carries a SHA-256 fingerprint of its daily data. Anyone can re-download the archive and compare.'
+// Each shield says what it actually does: only the second record can stop money moving; the AI check and the seal catch and expose.
+function shield(id, state, html, held = 'Stopped you') {
+  const el = $(id)
+  el.className = `shield${state ? ` ${state}` : ''}`
+  el.querySelector('p').innerHTML = html + (state ? `<br><span class="st">${state === 'stop' ? held : 'Got past'}</span>` : '')
 }
-for (const id of ['c-dist', 'c-season', 'c-src', 'c-rain', 'c-soil', 'c-both']) $(id).oninput = () => { renderCheat(); $('c-verdict').innerHTML = '' }
-renderCheat()
-$('c-go').onclick = async () => {
-  const s = cheatState(), btn = $('c-go')
+function renderGame() {
+  const a = attack()
+  $('g-rain-v').textContent = a.f === 1 ? '100% of what fell' : `${Math.round(a.f * 100)}% of what fell`
+  $('g-result').innerHTML = ''
+  $('g-result').className = 'result'
+  if (!a.tampered) {
+    shield('s1', '', 'Trained on 30 years of real Fiji weather. Spots data that doesn\'t behave like the real thing.')
+    shield('s2', '', `The contract only pays if the European and American records agree. Right now both say Ba's season was ${was(a.real.index)}.`)
+    shield('s3', '', 'Every reading is sealed against the public archives, so anyone can check it later.')
+    return
+  }
+  const caught = a.mine.flagged || (a.both && a.theirs.flagged)
+  shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}).`
+    : `<b>Slipped past.</b> Small fakes can look natural (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}). That's why it's not the only shield.`, 'Caught you')
+  shield('s2', a.agree ? (a.wouldPay ? 'pass' : '') : 'stop', !a.agree
+    ? `<b>Blocked.</b> ${a.both ? 'Even faked, the two records' : `NASA says Ba's season was ${was(a.theirs.dry)}; you say ${was(a.mine.dry)}. They`} don't agree, so nothing pays.`
+    : a.wouldPay ? `<b>Bypassed.</b> You faked both records so they agree on a ${kind((a.mine.dry + a.theirs.dry) / 2)}.`
+    : `Your fake is too small to matter: the records still agree it was ${was((a.mine.dry + a.theirs.dry) / 2)}.`)
+  shield('s3', 'stop', '<b>Exposed.</b> Your data no longer matches the seal anyone can check against Copernicus and NASA. The fraud is provable forever.', 'Exposed you')
+}
+$('g-rain').oninput = $('g-both').oninput = renderGame
+renderGame()
+$('g-go').onclick = async () => {
+  const a = attack(), btn = $('g-go')
   btn.disabled = true
-  $('c-verdict').textContent = 'Submitting to the contract…'
+  btn.textContent = 'Sending to the contract…'
   try {
-    cheatChain ??= await newChain(3)
-    const { dc } = cheatChain, season = 3000 + Math.floor(Math.random() * 60000) // a fresh checkpoint each try
-    const keyFor = (src) => (src === 'era5' ? K.era5 : K.power)
-    const fakeHash = '0x' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`fake ${Date.now()}`)))].map((b) => b.toString(16).padStart(2, '0')).join('')
-    // You control the oracle for your feed, so it posts the fake whatever the guard says.
-    await dc.write(keyFor(s.src), 'report', [season, 1, s.k, pm(s.mine.dry), fakeHash])
-    const otherHash = s.both ? fakeHash : s.real.sources[s.other].hash
-    const res = await dc.write(keyFor(s.other), 'report', [season, 1, s.k, pm(s.theirs.dry), otherHash])
-    const paid = res.events.filter((e) => e.name === 'Paid'), dis = res.events.some((e) => e.name === 'SourcesDisagree')
-    const amt = paid.reduce((a, e) => a + Number(e.args.amount / UNIT), 0)
-    $('c-verdict').innerHTML = dis ? `<b>Blocked by the contract.</b> The two sources disagreed, so nothing was paid and the disagreement is now on the ledger for anyone to investigate.<small>SourcesDisagree · block #${res.block} · ${res.hash}</small>`
-      : paid.length ? `<b>${s.both ? 'You got paid' : 'Paid'}: ${F(amt)}</b> to ${paid.length} test farmers. ${s.both ? 'With both feeds hacked the contract had no way to tell. But the fake fingerprints are on the ledger forever, and the data guard flags it publicly. That is fraud anyone can prove.' : 'Your fake was close enough to the real record that both sources agreed.'}<small>block #${res.block} · ${res.hash}</small>`
-      : `<b>No payout.</b> Even with your fake, the agreed reading wasn't a drought.<small>block #${res.block} · ${res.hash}</small>`
+    gameChain ??= await newChain(3)
+    const season = 3000 + Math.floor(Math.random() * 60000) // a fresh checkpoint every try
+    const seal = (s) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then((b) => '0x' + [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join(''))
+    const fakeSeal = a.tampered ? await seal(`faked ${Date.now()}`) : a.real.sources.era5.hash
+    await gameChain.dc.write(K.era5, 'report', [season, 1, G.k, pm(a.mine.dry), fakeSeal])
+    const res = await gameChain.dc.write(K.power, 'report', [season, 1, G.k, pm(a.theirs.dry), a.both && a.tampered ? fakeSeal : a.real.sources.power.hash])
+    const paid = res.events.filter((e) => e.name === 'Paid'), amt = paid.reduce((s, e) => s + Number(e.args.amount / UNIT), 0)
+    const r = $('g-result')
+    if (res.events.some((e) => e.name === 'SourcesDisagree')) r.className = 'result no', r.innerHTML = '<b>Nothing paid.</b> The contract saw two records that disagree and refused. Your attempt is now on the public record for anyone to investigate.'
+    else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> With both feeds hacked the contract couldn't tell. But the AI check flagged it, and the seal proves the data was faked: you'd be caught.`
+    else r.className = 'result no', r.innerHTML = `<b>Nothing paid.</b> Even with your fake, it wasn't a drought. ${a.tampered ? '' : 'Try moving the slider.'}`
   } catch (e) {
-    $('c-verdict').textContent = `The chain refused: ${e.message}`
+    $('g-result').className = 'result no'
+    $('g-result').textContent = `The contract refused: ${e.message}`
   }
   btn.disabled = false
+  btn.textContent = 'Claim the payout'
 }
 
-// ---------- 4. verify a reading against the public archives, live ----------
-const SEASONS = IDX.seasons.map((s) => s.season)
-opts($('v-season'), SEASONS.filter((y) => SEASON[y].final).map((y) => [y, `${y - 1}–${String(y).slice(2)}`]).reverse(), 1998)
-opts($('v-dist'), D.map((d, k) => [k, d.name]), BA)
+// ---------- 4. check it yourself, against the public archives, live ----------
+opts($('ck-dist'), D.map((d, k) => [k, d.name]), BA)
+opts($('ck-season'), IDX.seasons.filter((s) => s.final).map((s) => [s.season, `${s.season - 1}–${String(s.season).slice(2)}`]).reverse(), 1998)
+const ckWhat = () => { const k = +$('ck-dist').value, y = +$('ck-season').value; $('ck-what').textContent = `${D[k].name}, November ${y - 1} – April ${y}`; $('ck-rows').innerHTML = '' }
+$('ck-dist').oninput = $('ck-season').oninput = ckWhat
+$('ck-other').onclick = () => { $('ck-pick').hidden = !$('ck-pick').hidden }
 const sha = async (rows) => '0x' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(rows))))].map((b) => b.toString(16).padStart(2, '0')).join('')
-async function liveRows(src, d, y, last) {
-  const from = `${y - 1}-11-01`, to = `${y}-${String(last).padStart(2, '0')}-${last === 1 ? 31 : 30}`
+async function liveRows(src, d, y) {
+  const from = `${y - 1}-11-01`, to = `${y}-04-30`
   if (src === 'era5') {
     const base = `https://archive-api.open-meteo.com/v1/archive?latitude=${d.lat}&longitude=${d.lon}&start_date=${from}&end_date=${to}&timezone=Pacific%2FFiji`
     const [p, s] = await Promise.all([fetch(`${base}&daily=precipitation_sum&models=era5`).then((r) => r.json()), fetch(`${base}&daily=soil_moisture_0_to_100cm_mean&models=era5_land`).then((r) => r.json())])
@@ -312,56 +317,28 @@ async function liveRows(src, d, y, last) {
   const { PRECTOTCORR: r, GWETROOT: w } = j.properties.parameter, fill = j.header.fill_value
   return Object.keys(r).map((k) => [`${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6)}`, r[k] === fill ? null : r[k], w[k] === fill ? null : w[k]])
 }
-function renderVerify(live) {
-  const y = +$('v-season').value, stage = $('v-stage').value, k = +$('v-dist').value, r = SEASON[y][stage]?.[k]
-  if (!r) return ($('v-out').innerHTML = '<div class="v-sum bad">No reading for that checkpoint yet.</div>')
-  const card = (src, title) => {
-    const s = r.sources[src], l = live?.[src]
-    return `<div class="v-card"><h3>${title}</h3><dl><dt>Rainfall</dt><dd>${s.rain} mm (${ord(s.rainPct)} percentile)</dd><dt>Soil moisture</dt><dd>${s.soil} (${ord(s.soilPct)} percentile)</dd>` +
-      `<dt>Dryness</dt><dd>${pm(s.dryness)} / 1000</dd><dt>Fingerprint on ledger</dt><dd>${s.hash}</dd>` +
-      (l ? `<dt>Re-downloaded just now</dt><dd>${l.error ? `<span class="no">${l.error}</span>` : `${l.hash}<br><span class="${l.hash === s.hash ? 'ok' : 'no'}">${l.hash === s.hash ? '✓ identical' : `✗ differs (${l.diff})`}</span>`}</dd>` : '') + '</dl></div>'
-  }
-  const due = r.due ? `${Math.round(r.due * 100)}% of cover` : 'nothing'
-  $('v-out').innerHTML = `<div class="v-sum${r.agree ? '' : ' bad'}">${D[k].name}, ${stage} check ${y}: index ${pm(r.index)} / 1000 (${ord(r.index)} percentile), sources ${r.agree ? 'agree' : 'disagree'} (gap ${pm(r.gap)}) → contract pays ${due}.</div>` +
-    card('era5', 'Copernicus ERA5 / ERA5-Land') + card('power', 'NASA POWER (MERRA-2)')
-}
-for (const id of ['v-season', 'v-stage', 'v-dist']) $(id).oninput = () => renderVerify()
-renderVerify()
-$('v-go').onclick = async () => {
-  const y = +$('v-season').value, stage = $('v-stage').value, k = +$('v-dist').value, r = SEASON[y][stage][k], last = stage === 'early' ? 1 : 4
-  $('v-go').disabled = true
-  $('v-go').textContent = 'Downloading from Copernicus and NASA…'
-  const live = {}
+$('ck-go').onclick = async () => {
+  const k = +$('ck-dist').value, y = +$('ck-season').value, rec = SEASON[y].final[k], btn = $('ck-go')
+  btn.disabled = true
+  btn.textContent = 'Downloading…'
+  const NAMES = { era5: 'Copernicus ERA5 (Europe)', power: 'NASA POWER (USA)' }
+  const rows = []
+  let all = true
   for (const src of ['era5', 'power']) {
+    const s = rec.sources[src]
     try {
-      // Same window as scripts/build-index.mjs: 1 November to the end of the checkpoint month.
-      const end = `${y}-${String(last).padStart(2, '0')}-31`
-      const rows = (await liveRows(src, D[k], y, last)).filter(([t]) => t >= `${y - 1}-11-01` && t <= end)
-      const hash = await sha(rows), saved = r.sources[src]
-      const rain = rows.reduce((a, x) => a + (x[1] ?? 0), 0)
-      live[src] = { hash, diff: `rainfall now ${rain.toFixed(1)} mm vs ${saved.rain} mm` }
-    } catch (e) { live[src] = { error: `download failed: ${e.message}` } }
+      const live = (await liveRows(src, D[k], y)).filter(([t]) => t >= `${y - 1}-11-01` && t <= `${y}-04-31`)
+      const hash = await sha(live), ok = hash === s.hash, rain = live.reduce((a, x) => a + (x[1] ?? 0), 0)
+      all &&= ok
+      rows.push(`<div class="ck-row ${ok ? 'ok' : 'bad'}"><span class="ic">${ok ? '✓' : '✗'}</span><div><b>${NAMES[src]}: ${ok ? 'matches the sealed record' : 'differs from the sealed record'}</b>` +
+        `<span>${Math.round(rain)} mm of rain from November to April${ok ? '' : ` (sealed: ${Math.round(s.rain)} mm)`}</span><code>${hash}</code></div></div>`)
+    } catch (e) {
+      all = false
+      rows.push(`<div class="ck-row bad"><span class="ic">!</span><div><b>${NAMES[src]}: couldn't download</b><span>${e.message}</span></div></div>`)
+    }
   }
-  renderVerify(live)
-  $('v-go').disabled = false
-  $('v-go').textContent = 'Re-download and check'
+  const verdict = rec.due ? `paid ${Math.round(rec.due * 100)}% of the cover` : 'paid nothing'
+  $('ck-rows').innerHTML = rows.join('') + `<div class="ck-sum">${all ? `Both records match. The contract ${verdict} for ${D[k].name} that season, based on real, unaltered data.` : 'Something doesn\'t match. That is exactly what the seal is for: anyone can spot it.'}</div>`
+  btn.disabled = false
+  btn.textContent = 'Download and check'
 }
-
-// ---------- 5. your farm ----------
-opts($('f-dist'), D.map((d, k) => [k, d.name]), BA)
-function renderFarm() {
-  const k = +$('f-dist').value, cover = +$('f-cover').value
-  const rows = IDX.seasons.filter((s) => s.final).map((s) => {
-    const e = s.early?.[k], f = s.final[k], share = Math.max(e?.due ?? 0, f.due)
-    return { y: s.season, early: e?.due ? cover * e.due : 0, total: cover * share, idx: f.index, yc: s.yieldChange }
-  })
-  const paidRows = rows.filter((r) => r.total > 0), total = rows.reduce((a, r) => a + r.total, 0)
-  $('f-out').innerHTML = `<div class="f-sum"><div class="stat good"><b>${F(total)}</b><span>paid to you over ${rows.length} seasons, in ${paidRows.length} of them</span></div>` +
-    `<div class="stat"><b>${F(total / rows.length)}</b><span>a year on average: the fair price of ${F(cover)} cover before costs</span></div>` +
-    `<div class="stat"><b>${paidRows.filter((r) => r.early).length}</b><span>season${paidRows.filter((r) => r.early).length === 1 ? '' : 's'} with an early January payout</span></div></div>` +
-    `<div class="f-table"><table><thead><tr><th>Season</th><th>Dryness at ${D[k].name}</th><th>Paid in Jan</th><th>Paid in total</th><th>Fiji cane yield</th></tr></thead><tbody>` +
-    paidRows.map((r) => `<tr><td>${r.y - 1}–${String(r.y).slice(2)}</td><td>${ord(r.idx)} percentile</td><td class="n">${r.early ? F(r.early) : '—'}</td><td class="n pay">${F(r.total)}</td>` +
-      `<td class="n ${r.yc != null && r.yc < 0 ? 'neg' : ''}">${r.yc == null ? '—' : `${r.yc >= 0 ? '+' : ''}${Math.round(r.yc * 100)}%`}</td></tr>`).join('') + '</tbody></table></div>'
-}
-$('f-dist').oninput = $('f-cover').oninput = renderFarm
-renderFarm()
