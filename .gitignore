@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.env
+contracts/deployments/local.json
