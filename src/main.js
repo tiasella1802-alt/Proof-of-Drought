@@ -23,7 +23,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const drierThan = (x) => `drier than ${Math.min(99, Math.round((1 - x) * 100))}% of years in the 30-year record`
 const kind = (x) => (x <= 0.1 ? 'severe drought' : x <= 0.2 ? 'drought' : x <= 0.35 ? 'dry' : x <= 0.65 ? 'normal' : 'wet')
 const was = (x) => (x <= 0.2 ? `a ${kind(x)}` : kind(x)) // "was a drought" but "was wet"
-const STOPS = [[0, [190, 24, 12]], [0.1, [255, 61, 46]], [0.22, [255, 154, 92]], [0.42, [216, 221, 230]], [0.72, [130, 186, 255]], [1, [78, 168, 255]]]
+const STOPS = [[0, [190, 24, 12]], [0.1, [255, 61, 46]], [0.22, [246, 196, 69]], [0.42, [216, 221, 230]], [0.72, [130, 186, 255]], [1, [78, 168, 255]]]
 function colour(x) {
   let i = 0
   while (i < STOPS.length - 2 && x > STOPS[i + 1][0]) i++
@@ -117,6 +117,11 @@ function narrate(rows) {
   $('pl-month').textContent = monthLong(step)
   if (step === 2 || step === 5) {
     const label = step === 2 ? 'Early check' : 'Final check'
+    if (st?.checking) {
+      s.className = 'status alarm'
+      $('pl-note').textContent = `${label}: both satellite records are reporting to the contract…`
+      return
+    }
     s.className = `status ${got ? 'paid' : 'calm'}`
     $('pl-note').textContent = got ? `${label}: both satellite records agree ${name} is in ${was(x)}. ${F(got)} paid to you.`
       : step === 2 ? `${label}: ${name} isn't in a severe drought yet. Nothing paid, still watching.`
@@ -180,6 +185,7 @@ async function load(y) {
 async function checkpoint(stage, my) {
   const rows = SEASON[year]?.[stage]
   if (!rows) return
+  st.checking = true
   for (let k = 0; k < rows.length; k++) {
     if (my !== run) return
     const r = rows[k], s = stage === 'early' ? 0 : 1
@@ -199,7 +205,7 @@ async function checkpoint(stage, my) {
         st.you += each
         st.got[stage === 'early' ? 2 : 5] = each
         $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 400)
-        $('ph-time').textContent = when.slice(0, 6)
+        $('ph-date').textContent = `Your cane farm · ${when}`
         notify(`${F(each)} received.`, stage === 'early'
           ? `Drought confirmed at ${name}: ${drierThan(idx)}. Both satellite records agree. Use it for water, feed and seed.`
           : `The season ended ${drierThan(idx)}. That's ${F(st.you)} this season.`, when)
@@ -212,6 +218,8 @@ async function checkpoint(stage, my) {
     paint()
     await wait(120)
   }
+  st.checking = false
+  paint() // every district settled: now say what happened at your farm
 }
 
 async function advance() {
