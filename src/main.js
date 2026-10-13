@@ -43,13 +43,12 @@ async function newChain(perDistrict) {
   return { c, dc }
 }
 
-// ---------- 1. the stage: satellite map, district markers, the farmer's phone ----------
+// ---------- 1. the stage: pick a farm and a season, watch the contract decide ----------
 const YEARS = Object.keys(IDX.replays).map(Number)
-const LABEL = { 1983: '1983 · El Niño', 1987: '1987 · El Niño', 1992: '1992 · El Niño', 1998: '1998 · the big drought', 2010: '2010 · El Niño', 2016: '2016 · Cyclone Winston year' }
-opts($('pl-year'), YEARS.map((y) => [y, LABEL[y] ?? y]), 1998)
-let run = 0, playing = false, step = -1, year = 1998, st = null, markers = []
+let run = 0, playing = false, step = -1, year = 1998, farm = BA, st = null, markers = [], touched = false
 const MONTH_I = [11, 12, 1, 2, 3, 4]
 const LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const season = (y) => `${y - 1}–${String(y).slice(2)}`
 const monthName = (i) => { const m = MONTH_I[i]; return `${MONTHS[m - 1]} ${m >= 11 ? year - 1 : year}` }
 const monthLong = (i) => { const m = MONTH_I[i]; return `${LONG[m - 1]} ${m >= 11 ? year - 1 : year}` }
 
@@ -60,18 +59,35 @@ const SAT = {
     attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024)' } },
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#071022' } }, { id: 's2', type: 'raster', source: 's2', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }],
 }
-// Keep the cane belt clear of the headline (left), the phone (right), the status (top) and the dock (bottom).
-const pad = () => (innerWidth > 980 ? { top: 150, bottom: 150, left: Math.min(560, innerWidth * 0.4), right: 360 } : 30)
+// Keep the cane belt clear of the picker (left), the phone (right), the status (top) and the dock (bottom).
+const pad = () => (innerWidth > 980 ? { top: 150, bottom: 150, left: Math.min(540, innerWidth * 0.4), right: 360 } : 30)
 const BOUNDS = [[177.25, -18.3], [179.5, -16.3]]
 const map = new maplibregl.Map({ container: 'map', style: SAT, bounds: BOUNDS, fitBoundsOptions: { padding: pad() }, attributionControl: { compact: true }, cooperativeGestures: true })
 addEventListener('resize', () => map.fitBounds(BOUNDS, { padding: pad(), duration: 0 }))
-// Markers are plain HTML, so they show straight away instead of waiting for every map tile.
-markers = D.map((d) => {
+// Markers are plain HTML, so they show straight away; clicking one picks that farm.
+markers = D.map((d, k) => {
   const el = document.createElement('div')
   el.className = 'dm'
-  el.innerHTML = `<i></i><span>${d.name}</span>`
+  el.innerHTML = `<i title="Pick ${d.name}"></i><span>${d.name}</span>`
+  el.querySelector('i').onclick = () => pickFarm(k)
   return new maplibregl.Marker({ element: el, anchor: 'top' }).setLngLat([d.lon, d.lat]).addTo(map)
 })
+
+// The picker: farms as chips, seasons as a strip of bars (taller and redder = drier at the chosen farm).
+$('farms').innerHTML = D.map((d, k) => `<button data-k="${k}">${d.name}</button>`).join('')
+$('farms').onclick = (e) => { const b = e.target.closest('button'); if (b) pickFarm(+b.dataset.k) }
+function drawStrip() {
+  $('strip').innerHTML = YEARS.map((y) => {
+    const x = SEASON[y].final[farm].index
+    return `<button data-y="${y}" class="${y === year ? 'on' : ''}" style="--h:${Math.round(8 + (1 - x) * 92)}%;--c:${colour(x)}" title="${season(y)}: ${drierThan(x).replace(' in the 30-year record', '')}" aria-label="${season(y)}"></button>`
+  }).join('')
+  for (const b of $('farms').children) b.classList.toggle('on', +b.dataset.k === farm)
+  markers.forEach((m, k) => m.getElement().classList.toggle('sel', k === farm))
+  $('yr-lab').textContent = season(year)
+}
+$('strip').onclick = (e) => { const b = e.target.closest('button'); if (b) pickYear(+b.dataset.y) }
+function pickFarm(k) { touched = true; if (k === farm) return; farm = k; drawStrip(); load(year) }
+function pickYear(y) { touched = true; if (y === year) return; year = y; drawStrip(); load(y) }
 
 function paint() {
   const rows = step >= 0 ? IDX.replays[year][step].districts : null
@@ -85,18 +101,30 @@ function paint() {
   $('pl-months').innerHTML = MONTH_I.map((_, i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
     `${monthName(i).split(' ')[0]}<small>${i === 2 ? 'early check' : i === 5 ? 'final check' : ''}</small></li>`).join('')
   $('pl-progress').style.width = `${((step + 1) / 6) * 100}%`
-  const s = $('status')
+  narrate(rows)
+}
+
+// The status card tells the story of each month, for the chosen farm.
+function narrate(rows) {
+  const s = $('status'), name = D[farm].name
   if (step < 0) {
     s.className = 'status'
-    $('pl-month').textContent = year === 1998 ? 'The 1998 drought' : `The ${year} season`
-    $('pl-note').textContent = year === 1998 ? 'Eleven months of drought, September 1997 to August 1998' : 'Press play to watch it month by month'
+    $('pl-month').textContent = `${name}, ${season(year)}`
+    $('pl-note').textContent = 'Press play to watch the season, month by month'
     return
   }
-  const severe = rows.filter((r) => r.index <= 0.1).length, dry = rows.filter((r) => r.index <= 0.2).length, paidN = st?.paidD.size ?? 0
+  const x = rows[farm].index, got = st?.got[step]
   $('pl-month').textContent = monthLong(step)
-  s.className = `status${paidN ? ' paid' : severe || dry ? ' alarm' : ''}`
-  $('pl-note').textContent = (step === 2 || step === 5) && paidN ? `Both records agree · contract paying ${paidN} district${paidN > 1 ? 's' : ''}`
-    : severe ? `${severe} of 8 districts in severe drought` : dry ? `${dry} of 8 districts in drought` : 'Rain looks normal across the cane belt'
+  if (step === 2 || step === 5) {
+    const label = step === 2 ? 'Early check' : 'Final check'
+    s.className = `status ${got ? 'paid' : 'calm'}`
+    $('pl-note').textContent = got ? `${label}: both satellite records agree ${name} is in ${was(x)}. ${F(got)} paid to you.`
+      : step === 2 ? `${label}: ${name} isn't in a severe drought yet. Nothing paid, still watching.`
+      : st?.you ? `${label}: season over at ${name}. You've been paid ${F(st.you)}.` : `${label}: ${name} had a ${kind(x)} season. No payout needed.`
+    return
+  }
+  s.className = `status${x <= 0.2 ? ' alarm' : ''}`
+  $('pl-note').textContent = `Satellites are watching. So far ${name} is ${drierThan(x)}.`
 }
 
 function notify(title, body, when) {
@@ -114,7 +142,8 @@ function log(cls, block, text) {
 }
 function tally() {
   $('pl-paid').textContent = F(st.paid)
-  $('pl-farmers').textContent = `paid to ${st.farmers.size} of ${D.length * 12} farmers`
+  $('pl-you').textContent = F(st.you)
+  $('ph-bal').textContent = F(st.you)
 }
 function cashPop(k, amount) {
   const el = markers[k]?.getElement()
@@ -131,18 +160,18 @@ async function load(y) {
   const my = ++run
   year = y, step = -1, playing = false
   setPlay(false)
-  $('sms').innerHTML = '<li class="idle">No alerts yet. The rain is still falling… for now.</li>'
+  $('sms').innerHTML = '<li class="idle">No alerts yet.</li>'
   $('ph-bal').textContent = 'F$0'
-  $('ph-date').textContent = `Ba cane farm · ${y - 1}–${String(y).slice(2)} season`
-  $('ph-time').textContent = 'Ba'
-  $('record-log').innerHTML = ''
+  $('pl-you').textContent = 'F$0'
   $('pl-paid').textContent = 'F$0'
-  $('pl-farmers').textContent = 'starting the blockchain…'
+  $('ph-date').textContent = `Your cane farm · ${season(y)}`
+  $('ph-time').textContent = D[farm].name
+  $('record-log').innerHTML = ''
   st = null
   paint()
   const { c, dc } = await newChain(12)
   if (my !== run) return
-  st = { c, dc, paid: 0, farmers: new Set(), paidD: new Set(), ba: 0 }
+  st = { c, dc, paid: 0, you: 0, got: {}, paidD: new Set() }
   log('', dc.deployTx.block, `Contract deployed · ${D.length * 12} test farmers insured for F$1,000 each`)
   tally()
 }
@@ -157,31 +186,31 @@ async function checkpoint(stage, my) {
     await st.dc.write(K.era5, 'report', [year, s, k, pm(r.sources.era5.dryness), r.sources.era5.hash])
     const res = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), r.sources.power.hash])
     const settled = res.events.find((e) => e.name === 'Settled'), paid = res.events.filter((e) => e.name === 'Paid')
-    const idx = Number(settled.args.index) / 1000, name = D[k].name
+    const idx = Number(settled.args.index) / 1000, name = D[k].name, when = stage === 'early' ? `31 Jan ${year}` : `30 Apr ${year}`
     if (res.events.some((e) => e.name === 'SourcesDisagree')) log('bad', res.block, `${name} · the two records disagree · nothing paid`)
     else if (paid.length) {
       const amt = paid.reduce((a, e) => a + Number(e.args.amount / UNIT), 0)
       st.paid += amt
-      paid.forEach((e) => st.farmers.add(Number(e.args.id)))
       st.paidD.add(k)
       cashPop(k, amt)
       log('pay', res.block, `${name} · both records agree: ${kind(idx)} · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
-      if (k === BA) {
-        const each = Number(paid[0].args.amount / UNIT), when = stage === 'early' ? '31 Jan' : '30 Apr'
-        st.ba += each
-        $('ph-bal').textContent = F(st.ba)
+      if (k === farm) {
+        const each = Number(paid[0].args.amount / UNIT)
+        st.you += each
+        st.got[stage === 'early' ? 2 : 5] = each
         $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 400)
-        $('ph-time').textContent = when
-        if (stage === 'early') notify(`${F(each)} received.`, `Drought confirmed at Ba: ${drierThan(idx)}. Both satellite records agree. Use it for water, feed and seed.`, when)
-        else notify(`${F(each)} received.`, `The season ended ${drierThan(idx)}. That's ${F(st.ba)} for this season.`, when)
+        $('ph-time').textContent = when.slice(0, 6)
+        notify(`${F(each)} received.`, stage === 'early'
+          ? `Drought confirmed at ${name}: ${drierThan(idx)}. Both satellite records agree. Use it for water, feed and seed.`
+          : `The season ended ${drierThan(idx)}. That's ${F(st.you)} this season.`, when)
       }
     } else {
       log('', res.block, `${name} · ${kind(idx)} · no payout needed`)
-      if (k === BA && stage === 'final' && !st.ba) notify('No payout needed.', `Ba had a ${kind(idx)} season.`, '30 Apr')
+      if (k === farm && stage === 'final' && !st.you) notify('No payout this season.', `${name} had a ${kind(idx)} season. Your cover continues.`, when)
     }
     tally()
     paint()
-    await wait(140)
+    await wait(120)
   }
 }
 
@@ -197,7 +226,8 @@ async function advance() {
 function setPlay(on) {
   $('pl-play').innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
   $('pl-play').setAttribute('aria-label', on ? 'Pause' : 'Play')
-  $('hero-play').querySelector('span').textContent = on ? 'Playing…' : step >= 5 ? 'Replay it' : 'Replay the 1998 drought'
+  $('go').querySelector('span').textContent = on ? 'Playing…' : step >= 5 ? 'Play it again' : 'Play my season'
+  $('go').classList.toggle('pulse', !on && step < 0)
 }
 async function play() {
   if (playing) return (playing = false), setPlay(false)
@@ -209,20 +239,15 @@ async function play() {
   const my = run
   while (playing && my === run && step < 5) {
     if (!(await advance())) return
-    await wait(1300)
+    await wait(step === 2 || step === 5 ? 1900 : 1200)
   }
   if (my === run) playing = false, setPlay(false)
 }
-$('pl-play').onclick = play
-$('hero-play').onclick = async () => {
-  if (playing) return
-  if (year !== 1998) $('pl-year').value = 1998, await load(1998)
-  play()
-}
-$('pl-year').oninput = () => load(+$('pl-year').value)
+$('pl-play').onclick = $('go').onclick = () => { touched = true; play() }
 $('pl-months').onclick = async (e) => {
   const i = +e.target.closest('li')?.dataset.i
   if (!st || Number.isNaN(i) || playing) return
+  touched = true
   if (i < step) await load(year)
   while (st && step < i) if (!(await advance())) return
 }
@@ -231,9 +256,11 @@ $('pl-rec').onclick = () => {
   el.hidden = !show
   $('pl-rec').textContent = show ? 'Hide record' : 'On-chain record'
 }
-load(1998)
-// First glance: it plays itself, once, as soon as the chain is ready (not for people who prefer reduced motion).
-if (!matchMedia('(prefers-reduced-motion: reduce)').matches) (async () => { while (!st) await wait(150); await wait(900); if (step < 0 && !playing && year === 1998) play() })()
+drawStrip()
+load(year)
+// If nobody has picked anything after a few seconds, play the 1998 drought at Ba to show what happens
+// (not for people who prefer reduced motion).
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) (async () => { while (!st) await wait(150); await wait(3500); if (!touched && step < 0 && !playing) play() })()
 // The top bar turns solid once you scroll past the stage.
 const topBar = document.querySelector('.top')
 const solid = () => topBar.classList.toggle('solid', scrollY > $('stage').offsetHeight - 140)
@@ -254,7 +281,7 @@ const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric a
   $('takeaways').innerHTML =
     `<div class="tk good"><b>Paid in all ${caught.length} drought years</b><p>${caught.join(', ')}: every El Niño drought that cut Fiji's cane harvest.</p></div>` +
     `<div class="tk good"><b>Quiet when it wasn't drought</b><p>Cyclones and floods in ${Object.keys(STORM).join(', ')} hurt harvests too, but need a different kind of cover. It paid ${Object.keys(STORM).map((y) => `${Math.round(SEASON[y].payout * 100)}%`).join(', ')}.</p></div>` +
-    `<div class="tk meh"><b>${falseAlarms.length} false alarms in ${S.length} years</b><p>${falseAlarms.join(' and ')} paid out in seasons with normal harvests. We show them, because insurance that hides its mistakes isn't worth trusting.</p></div>`
+    `<div class="tk"><b>Every payout was a genuinely dry season</b><p>In ${falseAlarms.join(" and ")} the satellites correctly saw a dry season and it paid out, but the cane coped and the harvest held up. Those payouts are built into the price below.</p></div>`
 }
 opts($('f-dist'), D.map((d, k) => [k, d.name]), BA)
 function calc() {

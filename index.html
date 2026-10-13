@@ -19,33 +19,38 @@
     </nav>
   </header>
 
-  <!-- HERO: the map is the stage, the phone is the payoff -->
+  <!-- HERO: pick a farm, pick a season, watch the contract decide -->
   <section class="stage" id="stage">
     <div id="map"></div>
     <div class="shade" aria-hidden="true"></div>
 
     <div class="pitch">
-      <p class="chip"><span class="live"></span>Drought insurance for Fiji's sugarcane farmers</p>
-      <h1>When the rain fails,<br />the money <em>arrives.</em></h1>
-      <p class="lede">Satellites watch every cane district. When two independent records agree there's a drought, a smart contract pays every insured farmer's phone. No forms. No assessors. No waiting.</p>
-      <div class="cta">
-        <button class="btn hot" id="hero-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Replay the 1998 drought</span></button>
-        <a class="btn ghost" href="#record">45 years of proof</a>
+      <p class="chip"><span class="live"></span>For Fiji's sugarcane farmers</p>
+      <h1>Drought insurance that <em>pays itself.</em></h1>
+      <p class="lede">Satellites check the rain. If it fails, every insured farmer is paid automatically, straight to their phone. No claim forms, no waiting.</p>
+      <div class="try">
+        <p class="try-h">Try it: you're a cane farmer in Fiji</p>
+        <div class="q"><span class="n">1</span><b>Where's your farm?</b></div>
+        <div class="farms" id="farms"></div>
+        <div class="q"><span class="n">2</span><b>Pick a season</b><em id="yr-lab">1997–98</em></div>
+        <div class="strip" id="strip" role="listbox" aria-label="Season"></div>
+        <div class="strip-ends"><span>1982</span><span>taller &amp; redder = drier</span><span>2026</span></div>
+        <button class="btn hot go" id="go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Play my season</span></button>
       </div>
     </div>
 
     <div class="status" id="status" aria-live="polite">
-      <span class="s-month" id="pl-month">1998</span>
-      <span class="s-note" id="pl-note">Eleven months of drought, September 1997 to August 1998</span>
+      <span class="s-month" id="pl-month">Pick a farm and a season</span>
+      <span class="s-note" id="pl-note">then watch what the contract decides</span>
     </div>
 
-    <div class="phone" aria-label="A Ba cane farmer's phone">
+    <div class="phone" aria-label="Your phone">
       <div class="notch"></div>
       <div class="lock">
-        <p class="l-date" id="ph-date">Fiji · 1997–98 season</p>
+        <p class="l-date" id="ph-date">Your cane farm</p>
         <p class="l-time" id="ph-time">Ba</p>
         <div class="wallet"><span>Mobile wallet</span><b id="ph-bal">F$0</b></div>
-        <ol class="notifs" id="sms"><li class="idle">No alerts yet. The rain is still falling… for now.</li></ol>
+        <ol class="notifs" id="sms"><li class="idle">No alerts yet.</li></ol>
       </div>
     </div>
 
@@ -55,11 +60,8 @@
         <ol class="months" id="pl-months"></ol>
         <div class="bar"><i id="pl-progress"></i></div>
       </div>
-      <div class="count"><b id="pl-paid">F$0</b><span id="pl-farmers">paid to 0 of 96 farmers</span></div>
-      <div class="dock-more">
-        <select id="pl-year" aria-label="Season"></select>
-        <button class="lnk" id="pl-rec">On-chain record</button>
-      </div>
+      <div class="count"><span>Paid to you</span><b id="pl-you">F$0</b></div>
+      <div class="count all"><span>To all 96 farmers</span><b id="pl-paid">F$0</b><button class="lnk" id="pl-rec">On-chain record</button></div>
     </div>
     <div class="legend"><span><i class="w"></i>Wet</span><span><i class="n"></i>Normal</span><span><i class="d"></i>Dry</span><span><i class="s"></i>Severe drought</span><span><i class="p"></i>Paid</span></div>
     <ol class="record" id="record-log" hidden></ol>

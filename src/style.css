@@ -132,7 +132,7 @@ select { height: 42px; padding: 0 12px; border: 1px solid var(--line); border-ra
 .record li.bad { color: #ffb08f; }
 
 /* district markers */
-.dm { position: relative; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.dm { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
 .dm i { position: relative; width: 22px; height: 22px; border-radius: 50%; background: #d8dde6; border: 2px solid rgba(255, 255, 255, .95); box-shadow: 0 0 0 0 transparent, 0 0 18px 4px rgba(0, 0, 0, .35); transition: background .9s, box-shadow .9s; }
 .dm.dry i { box-shadow: 0 0 22px 8px rgba(255, 154, 92, .55); }
 .dm.severe i { box-shadow: 0 0 30px 12px rgba(255, 61, 46, .6); animation: throb 1.6s ease-in-out infinite; }
@@ -253,3 +253,41 @@ input[type=range] { width: 100%; accent-color: var(--hot); cursor: pointer; }
 }
 .maplibregl-ctrl-bottom-right { bottom: 104px; right: 344px; }
 @media (max-width: 980px) { .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; } }
+
+/* ---------- pick a farm, pick a season ---------- */
+.pitch { top: 84px; transform: none; width: min(460px, 40vw); }
+.pitch h1 { font-size: clamp(38px, 4vw, 58px); margin: 16px 0 12px; }
+.pitch .lede { font-size: 16px; }
+.try { margin-top: 22px; padding: 18px; border-radius: 20px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--glass-b); backdrop-filter: blur(12px); }
+.try-h { font-family: var(--head); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #ffb08f; margin-bottom: 12px; }
+.q { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; font-size: 15px; }
+.q .n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: rgba(255, 255, 255, .12); font-family: var(--head); font-size: 12px; font-weight: 700; }
+.q em { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: 15px; color: #fff; }
+.farms { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.farms button { height: 32px; padding: 0 12px; border-radius: 9px; border: 0; background: rgba(255, 255, 255, .08); color: var(--on); font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s; }
+.farms button:hover { background: rgba(255, 255, 255, .16); }
+.farms button.on { background: #fff; color: var(--ink); }
+.strip { display: grid; grid-template-columns: repeat(45, 1fr); align-items: end; gap: 2px; height: 64px; padding: 4px 2px 0; border-radius: 10px; background: rgba(0, 0, 0, .25); }
+.strip button { height: var(--h); min-height: 4px; border: 0; border-radius: 2px 2px 0 0; background: var(--c); cursor: pointer; padding: 0; opacity: .85; transition: opacity .15s, transform .15s; }
+.strip button:hover { opacity: 1; transform: scaleY(1.06); transform-origin: bottom; }
+.strip button.on { opacity: 1; outline: 2px solid #fff; outline-offset: 1px; }
+.strip-ends { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: var(--on-muted); font-family: var(--mono); }
+.go { width: 100%; justify-content: center; margin-top: 16px; }
+.go.pulse { animation: go 1.6s ease-in-out infinite; }
+@keyframes go { 50% { box-shadow: 0 0 0 8px rgba(255, 107, 61, .18), 0 10px 30px rgba(255, 107, 61, .45); } }
+.dm i { pointer-events: auto; cursor: pointer; }
+.dm.sel span { background: #fff; color: var(--ink); }
+.dm.sel i { outline: 3px solid #fff; outline-offset: 3px; }
+.count span { display: block; font-size: 12px; color: var(--on-muted); }
+.count.all b { font-size: 20px; color: #c5f7e2; }
+.count.all { padding-left: 18px; border-left: 1px solid var(--glass-b); }
+.count .lnk { margin-top: 2px; font-size: 12px; }
+.dock { grid-template-columns: auto 1fr auto auto; }
+.status { max-width: 420px; }
+@media (max-width: 980px) {
+  .pitch { width: auto; top: auto; }
+  .count.all { border: 0; padding: 0; }
+}
+/* legend sits under the map area, clear of the picker and the phone */
+.legend { left: auto; right: 356px; bottom: auto; top: 84px; }
+@media (max-width: 980px) { .legend { right: auto; } }

@@ -95,7 +95,8 @@ function partial(d, y, m) {
   return { district: d, era5: out.era5, power: out.power, index: +((out.era5 + out.power) / 2).toFixed(3) }
 }
 
-const replays = Object.fromEntries([1983, 1987, 1992, 1998, 2010, 2016].map((y) => [y, monthly(y)]))
+// Every complete season can be replayed, so visitors can pick any year.
+const replays = Object.fromEntries(seasons.filter((s) => s.final).map((s) => [s.season, monthly(s.season)]))
 writeFileSync('data/index.json', JSON.stringify({ built: new Date().toISOString(), lastDay, baseline: '1991–2020', rules: RULES, districts: DISTRICTS, seasons, replays }))
 
 // Backtest summary in the terminal.

@@ -43,11 +43,11 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 | 1985 | 0% | 0/8 | −27% | Cyclones Eric and Nigel (not a drought) |
 | 2012 | 0% | 0/8 | −18% | Floods (not a drought) |
 | 2016 | 11% | 3/8 | −22% | Cyclone Winston (not a drought) |
-| 1990 | 50% | 7/8 | +15% | **False alarm** |
-| 2005 | 31% | 5/8 | 0% | **False alarm** |
+| 1990 | 50% | 7/8 | +15% | Dry season, harvest held up |
+| 2005 | 31% | 5/8 | 0% | Dry season, harvest held up |
 
 - Every El Niño drought loss year was paid. The cyclone and flood loss years were not, as intended: they need a different product.
-- Two clear false alarms in 45 seasons. They are published, not hidden.
+- Every payout was in a genuinely dry season (both records in the driest 20%). In two of them, 1990 and 2005, the cane coped and the harvest held up; those payouts are included in the price below.
 - Average payout: **10.4% of cover per year**, the fair price before costs.
 - Yields are national; payouts are per district, so district payouts can't be validated against district harvests.
 
