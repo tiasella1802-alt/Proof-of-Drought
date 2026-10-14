@@ -537,3 +537,44 @@ details p b { color: #fff; font-family: var(--mono); }
 .ai-card { display: flex; flex-direction: column; }
 .ai-card details { margin-top: auto; padding-top: 14px; }
 .ai-big > b.mid { font-size: clamp(44px, 4.6vw, 60px); color: var(--cash); }
+
+/* ---------- El Niño chart at fixed proportions ---------- */
+.spark { width: 100%; height: auto; max-height: 220px; display: block; }
+.spark .grid { stroke: rgba(255, 255, 255, .07); stroke-width: 1; }
+.spark .zero { stroke: rgba(255, 255, 255, .25); stroke-width: 1; stroke-dasharray: 4 4; }
+.spark text { font-family: var(--mono); font-size: 12px; fill: #6f7c96; }
+.spark .yl { text-anchor: end; }
+.spark .ml { text-anchor: middle; }
+.spark .tl { font-size: 13px; font-weight: 600; }
+.spark text.then { fill: #8d97ad; } .spark text.now { fill: #ff6a5c; }
+.spark polyline { stroke-width: 3; }
+
+/* ---------- chapters ---------- */
+.eyebrow.chap { display: flex; align-items: center; gap: 10px; }
+.eyebrow.chap i { font-style: normal; display: inline-grid; place-items: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 7px;
+  background: currentColor; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0; }
+.eyebrow.chap i { color: inherit; background: rgba(124, 92, 255, .14); }
+.contrast .eyebrow.chap { color: var(--cash); } .contrast .eyebrow.chap i { background: rgba(47, 227, 158, .14); }
+.now-sec .eyebrow.chap i { background: rgba(255, 106, 92, .16); }
+
+.rail { position: fixed; z-index: 30; right: 18px; top: 50%; transform: translate(20px, -50%); display: flex; flex-direction: column; gap: 6px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; }
+.rail.show { opacity: 1; transform: translate(0, -50%); pointer-events: auto; }
+.rail a { display: flex; align-items: center; justify-content: flex-end; gap: 10px; height: 22px; text-decoration: none; }
+.rail i { order: 2; width: 9px; height: 9px; border-radius: 50%; background: #9aa7bf; box-shadow: 0 0 0 3px rgba(255, 255, 255, .7); transition: transform .2s, background .2s; }
+.rail span { order: 1; padding: 3px 9px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; opacity: 0; transform: translateX(6px); transition: opacity .2s, transform .2s; }
+.rail a:hover span, .rail a.on span { opacity: 1; transform: none; }
+.rail a.on i { background: var(--hot); transform: scale(1.5); }
+@media (max-width: 1100px) { .rail { display: none; } }
+
+/* ---------- flash-card reveals ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .rv { opacity: 0; transform: perspective(1000px) translateY(34px) rotateX(-16deg); transform-origin: 50% 0;
+    transition: opacity .6s ease, transform .75s cubic-bezier(.2, .9, .25, 1); transition-delay: calc(var(--i, 0) * 80ms); }
+  .rv.left { transform: perspective(1000px) translateX(-40px) rotateY(14deg); }
+  .rv.right { transform: perspective(1000px) translateX(40px) rotateY(-14deg); transition-delay: 180ms; }
+  .rv.flip { transform: perspective(600px) rotateY(-95deg); transform-origin: 50% 50%; transition-delay: calc(var(--i, 0) * 22ms); transition-duration: .35s, .55s; }
+  .rv.in { opacity: 1; transform: none; }
+  html { scroll-behavior: smooth; }
+}
+.spark text { stroke: none; }
+main { overflow-x: clip; } /* cards sliding in from the side never widen the page */

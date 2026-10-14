@@ -507,10 +507,16 @@ const NS = FC.now.season // the season ending in April of this year
   $('nino-then').textContent = degC(then.months[last])
   document.querySelector('.nino .k').textContent = `How much warmer than normal the Pacific is, ${LONG[last]}`
   document.querySelector('.nino .then span').textContent = `${LONG[last]} ${then.year}, before the 1998 drought`
-  const x = (i) => 6 + (i / 11) * 288, y = (v) => 70 - ((v + 1) / 4) * 64
+  // Drawn at fixed proportions (it scales as a whole), with a degrees scale, months and labelled lines.
+  const W = 640, H = 190, L = 44, R = 64, T = 12, B = 26, lo = -1, hi = 3
+  const x = (i) => L + (i / 11) * (W - L - R), y = (v) => T + ((hi - v) / (hi - lo)) * (H - T - B)
   const line = (m, n) => m.slice(0, n).map((v, i) => `${x(i)},${y(v)}`).join(' ')
-  $('nino-spark').innerHTML = `<line x1="0" x2="300" y1="${y(0)}" y2="${y(0)}" class="zero"/><polyline points="${line(then.months, 12)}" class="then"/>` +
-    `<polyline points="${line(now.months, last + 1)}" class="now"/><circle cx="${x(last)}" cy="${y(now.months[last])}" r="4" class="now"/>`
+  const grid = [-1, 0, 1, 2, 3].map((v) => `<line x1="${L}" x2="${W - R + 8}" y1="${y(v)}" y2="${y(v)}" class="${v === 0 ? 'zero' : 'grid'}"/><text x="${L - 8}" y="${y(v) + 4}" class="yl">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}°</text>`).join('')
+  const months = 'JFMAMJJASOND'.split('').map((m, i) => `<text x="${x(i)}" y="${H - 6}" class="ml">${m}</text>`).join('')
+  $('nino-spark').innerHTML = grid + months +
+    `<polyline points="${line(then.months, 12)}" class="then"/><text x="${x(11) + 8}" y="${y(then.months[11]) + 4}" class="tl then">${then.year}</text>` +
+    `<polyline points="${line(now.months, last + 1)}" class="now"/><circle cx="${x(last)}" cy="${y(now.months[last])}" r="5" class="now"/>` +
+    `<text x="${x(last) + 10}" y="${y(now.months[last]) - 8}" class="tl now">${now.year}</text>`
 }
 // Countdown to the dates that matter (midnight in Fiji).
 const DATES = [
@@ -632,3 +638,55 @@ function funders() {
 $('f-price').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; fPrice = b.dataset.p; for (const x of $('f-price').children) x.classList.toggle('on', x === b); funders() }
 $('f-load').oninput = $('f-elnino').oninput = funders
 funders()
+
+// ---------- 8. moving through the story: cards flip into place, chapters, count-ups ----------
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+// Marks elements to flip in as they scroll into view. Groups stagger, like cards being dealt.
+function deal(selector, kind = '') {
+  if (still) return
+  document.querySelectorAll(selector).forEach((group) => [...(group.matches('[data-deal]') ? group.children : [group])].forEach((el, i) => {
+    el.classList.add('rv'); if (kind) el.classList.add(kind)
+    el.style.setProperty('--i', Math.min(i, kind === 'flip' ? 60 : 12))
+    seen.observe(el)
+  }))
+}
+const seen = new IntersectionObserver((entries) => {
+  for (const e of entries) if (e.isIntersecting) {
+    seen.unobserve(e.target)
+    e.target.classList.add('in')
+    // once it has landed, hand the element back to its normal styles (hover effects and so on)
+    const done = (t) => { if (t.target !== e.target || t.propertyName !== 'transform') return; e.target.removeEventListener('transitionend', done); e.target.classList.remove('rv', 'in', 'flip', 'left', 'right') }
+    e.target.addEventListener('transitionend', done)
+    const n = e.target.querySelector?.('.count-up'); if (n) countUp(n)
+  }
+}, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' })
+function countUp(el) {
+  const to = +el.dataset.to, t0 = performance.now(), dur = 900
+  const step = (t) => { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(to * (1 - (1 - p) ** 3)); if (p < 1) requestAnimationFrame(step) }
+  requestAnimationFrame(step)
+}
+for (const el of ['.years', '.takeaways', '.calc-out', '.shields', '.ai-row', '.f-stats', '.r-grid']) document.querySelector(el)?.setAttribute('data-deal', '')
+deal('main .head')
+deal('.big-line')
+deal('.c-side.then', 'left'); deal('.c-side.now', 'right')
+deal('.scale'); deal('.years', 'flip'); deal('.ykey'); deal('.takeaways'); deal('.calc')
+deal('.ctl', 'left'); deal('.shields')
+deal('.ai-row'); deal('.clock'); deal('.nino'); deal('.now-grid')
+deal('.f-ctl'); deal('.f-chart'); deal('.f-verdict'); deal('.f-stats'); deal('.audit')
+deal('.ck'); deal('.r-grid')
+// The 61% counts up the first time it's seen.
+{
+  const b = $('fc-chance'), to = parseInt(b.textContent)
+  b.innerHTML = `<span class="count-up" data-to="${to}">${to}</span>%`
+}
+// The chapter rail: shows where you are in the story.
+{
+  const links = [...document.querySelectorAll('#rail a')]
+  const where = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) for (const a of links) a.classList.toggle('on', a.dataset.s === e.target.id)
+  }, { rootMargin: '-45% 0px -50% 0px' })
+  for (const a of links) where.observe($(a.dataset.s))
+  const show = () => $('rail').classList.toggle('show', scrollY > $('stage').offsetHeight * 0.6)
+  addEventListener('scroll', show, { passive: true })
+  show()
+}

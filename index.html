@@ -87,10 +87,20 @@
     <ol class="record" id="record-log" hidden></ol>
   </section>
 
+  <nav class="rail" id="rail" aria-label="Chapters">
+    <a href="#stage" data-s="stage"><i></i><span>Watch 1998</span></a>
+    <a href="#then" data-s="then"><i></i><span>8 months earlier</span></a>
+    <a href="#record" data-s="record"><i></i><span>Track record</span></a>
+    <a href="#cheat" data-s="cheat"><i></i><span>Can it be cheated?</span></a>
+    <a href="#now" data-s="now"><i></i><span>Right now</span></a>
+    <a href="#funders" data-s="funders"><i></i><span>For insurers</span></a>
+    <a href="#check" data-s="check"><i></i><span>Check the data</span></a>
+  </nav>
   <main>
     <!-- Then vs now -->
-    <section class="contrast">
-      <div class="big-line"><b>8 months earlier.</b><p>That's how much sooner Fiji's cane farmers would have been paid in 1998: January, against a disaster declared in September.</p></div>
+    <section class="contrast" id="then">
+      <p class="eyebrow chap"><i>01</i>The 1998 drought</p>
+      <div class="big-line"><b><span class="count-up" data-to="8">8</span> months earlier.</b><p>That's how much sooner Fiji's cane farmers would have been paid in 1998: January, against a disaster declared in September.</p></div>
       <div class="c-row">
         <div class="c-side then">
           <p class="tag">What actually happened</p>
@@ -116,7 +126,7 @@
     <!-- Track record -->
     <section class="record-sec" id="record">
       <div class="head">
-        <p class="eyebrow">Track record</p>
+        <p class="eyebrow chap"><i>02</i>Track record</p>
         <h2>Would it have worked? We ran it on 45 years of real weather.</h2>
         <p>Each square is one season since 1982. Green: the cover paid out. Red dot: Fiji's cane harvest really fell that year.</p>
       </div>
@@ -133,7 +143,7 @@
     <!-- Cheat -->
     <section class="cheat" id="cheat">
       <div class="head">
-        <p class="eyebrow">Can it be cheated?</p>
+        <p class="eyebrow chap"><i>03</i>Can it be cheated?</p>
         <h2>You've hacked the European satellite feed. Fake a drought.</h2>
         <p>Ba, 2010–11: a normal, wet season. Report less rain than really fell, then try to claim the payout.</p>
       </div>
@@ -157,7 +167,7 @@
     <!-- Right now: the 2026–27 season, live -->
     <section class="now-sec" id="now">
       <div class="head">
-        <p class="eyebrow"><span class="live red"></span>Right now · the 2026–27 season</p>
+        <p class="eyebrow chap"><i>04</i><span class="live red"></span>Right now · the 2026–27 season</p>
         <h2>A 1998-strength El Niño is under way. This is what the contract sees today.</h2>
         <p>The last time the Pacific looked like this, Fiji's cane belt went eleven months without enough rain. These are today's Copernicus and NASA readings, ranked exactly as the contract will rank them.</p>
       </div>
@@ -180,7 +190,7 @@
         <div class="nino">
           <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
           <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
-          <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <svg class="spark" id="nino-spark" viewBox="0 0 640 190" role="img" aria-label="Pacific Ocean temperature above normal, month by month, 1997 and this year"></svg>
           <p class="fine">Degrees warmer than normal, January to September. Source: NOAA Climate Prediction Center, which expects a strong El Niño to last into early 2027.</p>
         </div>
       </div>
@@ -191,7 +201,7 @@
     <!-- Insurers and funders -->
     <section class="funders" id="funders">
       <div class="head">
-        <p class="eyebrow">For insurers and funders</p>
+        <p class="eyebrow chap"><i>05</i>For insurers and funders</p>
         <h2>Does the pool survive? 45 years at Fiji's scale.</h2>
         <p>About 10,200 cane growers with F$1,000 of cover each, every season since 1983, paid by the same rules and priced by the El Niño forecast made before each season began.</p>
       </div>
@@ -214,7 +224,7 @@
     <!-- Check -->
     <section class="check" id="check">
       <div class="head">
-        <p class="eyebrow">Check the data</p>
+        <p class="eyebrow chap"><i>06</i>Check the data</p>
         <h2>Check the data yourself.</h2>
         <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus and NASA, right now, and see if it matches.</p>
       </div>
