@@ -4,7 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 import { chain, demoKey, addressOf } from './evm.js'
 import { inSeason, seasonAgg, features, score, pct } from './guard.js'
-import { district as trackDistrict, SEASON_START } from './now.js'
+import { district as trackDistrict, dryness as rankRows, SEASON_START } from './now.js'
 
 maplibregl.setWorkerUrl(workerUrl) // Vite's dependency bundling hides MapLibre's own worker file
 
@@ -453,23 +453,41 @@ $('ck-go').onclick = async () => {
   btn.disabled = true
   btn.textContent = 'Downloading…'
   const NAMES = { era5: 'Copernicus ERA5 (Europe)', power: 'NASA POWER (USA)' }
-  const rows = []
-  let all = true
+  const rows = [], dry = {}
+  let exact = true, failed = false
+  NOWDATA ??= await get('now.json') // the 1991–2020 baseline, to re-rank revised data the way the contract did
   for (const src of ['era5', 'power']) {
     const s = rec.sources[src]
     try {
       const live = (await liveRows(src, D[k], y)).filter(([t]) => t >= `${y - 1}-11-01` && t <= `${y}-04-31`)
       const hash = await sha(live), ok = hash === s.hash, rain = live.reduce((a, x) => a + (x[1] ?? 0), 0)
-      all &&= ok
-      rows.push(`<div class="ck-row ${ok ? 'ok' : 'bad'}"><span class="ic">${ok ? '✓' : '✗'}</span><div><b>${NAMES[src]}: ${ok ? 'matches the sealed record' : 'differs from the sealed record'}</b>` +
-        `<span>${Math.round(rain)} mm of rain from November to April${ok ? '' : ` (sealed: ${Math.round(s.rain)} mm)`}</span><code>${hash}</code></div></div>`)
+      exact &&= ok
+      if (ok) {
+        dry[src] = s.dryness
+        rows.push(`<div class="ck-row ok"><span class="ic">✓</span><div><b>${NAMES[src]}: identical to the sealed record</b>` +
+          `<span>${Math.round(rain)} mm of rain from November to April</span><code>${hash}</code></div></div>`)
+      } else {
+        // Reanalysis archives are sometimes revised (often by 0.1 mm here and there). Say how much, and whether it matters.
+        const days = live.filter(([t]) => !t.endsWith('-02-29')), padded = [...Array(SEASON_START).fill([null, null, null]), ...days]
+        dry[src] = rankRows(padded, NOWDATA.districts[KEYS[k]][src].base, SEASON_START, padded.length).dryness
+        const same = kind(dry[src]) === kind(s.dryness)
+        rows.push(`<div class="ck-row ${same ? 'rev' : 'bad'}"><span class="ic">≈</span><div><b>${NAMES[src]}: the archive has been revised since this was sealed</b>` +
+          `<span>${rain.toFixed(1)} mm of rain now, ${s.rain.toFixed(1)} mm when sealed. ${same ? `Still ranked ${kind(dry[src])}, the same as when sealed.` : `Now ranked ${kind(dry[src])}; it was ${kind(s.dryness)} when sealed.`}</span>` +
+          `<code>now ${hash}<br>sealed ${s.hash}</code></div></div>`)
+      }
     } catch (e) {
-      all = false
+      failed = true
       rows.push(`<div class="ck-row bad"><span class="ic">!</span><div><b>${NAMES[src]}: couldn't download</b><span>${e.message}</span></div></div>`)
     }
   }
-  const verdict = rec.due ? `paid ${Math.round(rec.due * 100)}% of the cover` : 'paid nothing'
-  $('ck-rows').innerHTML = rows.join('') + `<div class="ck-sum">${all ? `Both records match. The contract ${verdict} for ${D[k].name} that season, based on real, unaltered data.` : 'Something doesn\'t match. That is exactly what the seal is for: anyone can spot it.'}</div>`
+  const verdict = (due) => (due ? `paid ${Math.round(due * 100)}% of the cover` : 'paid nothing')
+  // What the contract would decide from today's archive, by the same rules.
+  const R = IDX.rules, idx = (dry.era5 + dry.power) / 2, agree = Math.abs(dry.era5 - dry.power) <= R.maxGap
+  const dueNow = !agree ? 0 : idx <= R.severe.at ? R.severe.pay : idx <= R.moderate.at ? R.moderate.pay : 0
+  $('ck-rows').innerHTML = rows.join('') + `<div class="ck-sum">${failed ? 'One of the archives didn\'t answer. Try again in a moment.'
+    : exact ? `Both records match exactly. The contract ${verdict(rec.due)} for ${D[k].name} that season, based on real, unaltered data.`
+    : dueNow === rec.due ? `The archive has been revised slightly since the seal was made, which happens with reanalysis data. The decision doesn't change: by the same rules, today's data also ${verdict(dueNow).replace('paid', 'pays')}. The seal proves exactly which data the contract used.`
+    : `The revised archive would change the decision (${verdict(dueNow).replace('paid', 'pays')} instead of ${verdict(rec.due).replace('paid ', '')}). The seal proves which data the contract actually used, so any dispute can be settled.`}</div>`
   btn.disabled = false
   btn.textContent = 'Download and check'
 }

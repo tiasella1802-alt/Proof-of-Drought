@@ -509,3 +509,4 @@ details p b { color: #fff; font-family: var(--mono); }
 .audit b { display: inline; font-family: var(--body); font-size: inherit; color: var(--ink); margin: 0; }
 @media (max-width: 980px) { .audit { display: grid; } }
 #f-svg .lead { stroke: var(--hot); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.ck-row.rev { border-color: #b9d3f5; background: #f4f8ff; } .ck-row.rev .ic { background: #4e7fc4; color: #fff; }
