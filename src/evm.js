@@ -3,6 +3,7 @@
 // signed transaction executed by the same EVM rules as Ethereum, with real gas, logs and balances.
 import { createVM, runTx } from '@ethereumjs/vm'
 import { createLegacyTx } from '@ethereumjs/tx'
+import { createBlock } from '@ethereumjs/block'
 import { Common, Mainnet, Hardfork } from '@ethereumjs/common'
 import { Address, createAccount, hexToBytes, bytesToHex, privateToAddress } from '@ethereumjs/util'
 import { Interface, ContractFactory, keccak256, getBytes } from 'ethers'
@@ -11,7 +12,8 @@ export async function chain() {
   const common = new Common({ chain: Mainnet, hardfork: Hardfork.Cancun })
   const vm = await createVM({ common })
   const nonces = new Map()
-  let block = 0
+  let block = 0, time = BigInt(Math.floor(Date.now() / 1000)) // block timestamps; warp() moves the clock forward
+  const header = () => createBlock({ header: { number: BigInt(block + 1), timestamp: time, baseFeePerGas: 1n, gasLimit: 30_000_000n } }, { common })
 
   async function fund(address, wei) {
     const a = new Address(hexToBytes(address))
@@ -24,7 +26,7 @@ export async function chain() {
     const from = bytesToHex(privateToAddress(hexToBytes(key)))
     const nonce = nonces.get(from) ?? 0n
     const tx = createLegacyTx({ nonce, gasPrice: 7n, gasLimit: gas, to, value, data }, { common }).sign(hexToBytes(key))
-    const res = await runTx(vm, { tx, skipBalance: true, skipBlockGasLimitValidation: true, skipHardForkValidation: true })
+    const res = await runTx(vm, { tx, block: header(), skipBalance: true, skipBlockGasLimitValidation: true, skipHardForkValidation: true })
     nonces.set(from, nonce + 1n)
     block++
     const hash = bytesToHex(tx.hash())
@@ -34,7 +36,7 @@ export async function chain() {
   }
 
   async function call(to, data) {
-    const r = await vm.evm.runCall({ to: new Address(hexToBytes(to)), data: getBytes(data), gasLimit: 10_000_000n })
+    const r = await vm.evm.runCall({ to: new Address(hexToBytes(to)), data: getBytes(data), gasLimit: 10_000_000n, block: header() })
     if (r.execResult.exceptionError) throw new Error(r.execResult.exceptionError.error)
     return bytesToHex(r.execResult.returnValue)
   }
@@ -63,7 +65,8 @@ export async function chain() {
 
   async function transfer(key, to, value) { return send(key, { to: new Address(hexToBytes(to)), value }) }
 
-  return { fund, balance, deploy, transfer, get block() { return block } }
+  const warp = (seconds) => { time += BigInt(seconds) }
+  return { fund, balance, deploy, transfer, warp, get block() { return block }, get time() { return time } }
 }
 
 // Deterministic demo keys (never used anywhere else). Derived so they're stable across page loads.

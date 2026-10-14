@@ -4,12 +4,13 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 import { chain, demoKey, addressOf } from './evm.js'
 import { inSeason, seasonAgg, features, score, pct } from './guard.js'
+import { district as trackDistrict, SEASON_START } from './now.js'
 
 maplibregl.setWorkerUrl(workerUrl) // Vite's dependency bundling hides MapLibre's own worker file
 
 const $ = (id) => document.getElementById(id)
 const get = (f) => fetch(`/data/${f}`).then((r) => r.json())
-const [IDX, GUARD, DAYS, ART] = await Promise.all(['index.json', 'guard.json', 'days.json', 'contract.json'].map(get))
+const [IDX, GUARD, DAYS, ART, FC] = await Promise.all(['index.json', 'guard.json', 'days.json', 'contract.json', 'forecast.json'].map(get))
 const D = IDX.districts, KEYS = D.map((d) => d.key), BA = KEYS.indexOf('ba')
 const SEASON = Object.fromEntries(IDX.seasons.map((s) => [s.season, s]))
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -18,6 +19,11 @@ const pm = (x) => Math.round(x * 1000) // 0..1 → per mille, as the contract wa
 const short = (h) => `${h.slice(0, 8)}…${h.slice(-4)}`
 const opts = (el, list, sel) => (el.innerHTML = list.map(([v, t]) => `<option value="${v}"${v == sel ? ' selected' : ''}>${t}</option>`).join(''))
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+const GROWERS = 10_200 // active cane growers in Fiji, about (Prime Minister, Fiji Times, Oct 2025)
+const millions = (n) => `F$${(n / 1e6).toFixed(1)} million`
+// The data guard's verdict as an oracle posts it: score as a share of the flag threshold, per mille (above 1000 = flagged).
+const verdict = (x) => Math.min(65535, Math.round(x * 1000))
+const realVerdict = (stage, y, k, src) => verdict(GUARD.scores[stage][y]?.[k]?.[src === 'era5' ? 0 : 1] ?? 0)
 
 // Plain words for an index (0 = driest season in the 1991–2020 record, 1 = wettest).
 const drierThan = (x) => `drier than ${Math.min(99, Math.round((1 - x) * 100))}% of years in the 30-year record`
@@ -149,6 +155,26 @@ function tally() {
   $('pl-paid').textContent = F(st.paid)
   $('pl-you').textContent = F(st.you)
   $('ph-bal').textContent = F(st.you)
+  insurer()
+}
+// The insurer's view on the phone: the same contract, read from the pool's side.
+async function insurer() {
+  if (!st) return
+  const s = st
+  $('in-paid').textContent = F(s.paid)
+  $('in-farmers').textContent = `${s.ids.size} of ${D.length * 12}`
+  $('in-settled').textContent = `${s.settled} of ${D.length * 2}`
+  $('in-disagree').textContent = s.disagree
+  $('in-held').textContent = s.held
+  $('in-scale').textContent = s.paid ? millions((s.paid / (D.length * 12)) * GROWERS) : 'F$0'
+  const pool = await s.c.balance(s.dc.address)
+  if (s === st) $('in-pool').textContent = F(Number(pool / UNIT))
+}
+for (const b of document.querySelectorAll('.views button')) b.onclick = () => {
+  const ins = b.dataset.v === 'insurer'
+  for (const x of document.querySelectorAll('.views button')) x.classList.toggle('on', x === b), x.setAttribute('aria-selected', x === b)
+  $('ins').hidden = !ins
+  document.querySelector('.phone').classList.toggle('insurer', ins)
 }
 function cashPop(k, amount) {
   const el = markers[k]?.getElement()
@@ -176,7 +202,7 @@ async function load(y) {
   paint()
   const { c, dc } = await newChain(12)
   if (my !== run) return
-  st = { c, dc, paid: 0, you: 0, got: {}, paidD: new Set() }
+  st = { c, dc, paid: 0, you: 0, got: {}, paidD: new Set(), ids: new Set(), settled: 0, disagree: 0, held: 0 }
   log('', dc.deployTx.block, `Contract deployed · ${D.length * 12} test farmers insured for F$1,000 each`)
   tally()
 }
@@ -189,12 +215,19 @@ async function checkpoint(stage, my) {
   for (let k = 0; k < rows.length; k++) {
     if (my !== run) return
     const r = rows[k], s = stage === 'early' ? 0 : 1
-    await st.dc.write(K.era5, 'report', [year, s, k, pm(r.sources.era5.dryness), r.sources.era5.hash])
-    const res = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), r.sources.power.hash])
+    // Each oracle posts its reading, its data guard's verdict and the seal of the raw data behind it.
+    await st.dc.write(K.era5, 'report', [year, s, k, pm(r.sources.era5.dryness), realVerdict(stage, year, k, 'era5'), r.sources.era5.hash])
+    const res = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), realVerdict(stage, year, k, 'power'), r.sources.power.hash])
+    st.settled++
     const settled = res.events.find((e) => e.name === 'Settled'), paid = res.events.filter((e) => e.name === 'Paid')
     const idx = Number(settled.args.index) / 1000, name = D[k].name, when = stage === 'early' ? `31 Jan ${year}` : `30 Apr ${year}`
-    if (res.events.some((e) => e.name === 'SourcesDisagree')) log('bad', res.block, `${name} · the two records disagree · nothing paid`)
-    else if (paid.length) {
+    if (res.events.some((e) => e.name === 'SourcesDisagree')) st.disagree++, log('bad', res.block, `${name} · the two records disagree · nothing paid`)
+    else if (res.events.some((e) => e.name === 'PayoutHeld')) {
+      st.held++
+      log('bad', res.block, `${name} · ${kind(idx)}, but the AI guard flagged the data · payout held 14 days for review`)
+      if (k === farm) notify('Payout on hold.', `The data for ${name} looks unusual, so your payout waits 14 days in case anyone challenges it.`, when)
+    } else if (paid.length) {
+      for (const e of paid) st.ids.add(e.args.id)
       const amt = paid.reduce((a, e) => a + Number(e.args.amount / UNIT), 0)
       st.paid += amt
       st.paidD.add(k)
@@ -319,7 +352,7 @@ function attack() {
   }
   const real = SEASON[y].final[k]
   const mine = judge(src, fake(DAYS[y][KEYS[k]][src], src))
-  const theirs = both ? judge(other, fake(DAYS[y][KEYS[k]][other], other)) : { dry: real.sources[other].dryness, flagged: false }
+  const theirs = both ? judge(other, fake(DAYS[y][KEYS[k]][other], other)) : { dry: real.sources[other].dryness, flagged: false, score: 0, limit: 1 }
   const gap = Math.abs(pm(mine.dry) - pm(theirs.dry)), index = (mine.dry + theirs.dry) / 2
   return { f, both, tampered: f < 1, mine, theirs, real, gap, agree: gap <= 250, wouldPay: gap <= 250 && index <= 0.2 }
 }
@@ -341,7 +374,7 @@ function renderGame() {
     return
   }
   const caught = a.mine.flagged || (a.both && a.theirs.flagged)
-  shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}).`
+  shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}). The verdict goes on-chain: any payout waits 14 days so it can be challenged.`
     : `<b>Slipped past.</b> Small fakes can look natural (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}). That's why it's not the only shield.`, 'Caught you')
   shield('s2', a.agree ? (a.wouldPay ? 'pass' : '') : 'stop', !a.agree
     ? `<b>Blocked.</b> ${a.both ? 'Even faked, the two records' : `NASA says Ba's season was ${was(a.theirs.dry)}; you say ${was(a.mine.dry)}. They`} don't agree, so nothing pays.`
@@ -360,12 +393,23 @@ $('g-go').onclick = async () => {
     const season = 3000 + Math.floor(Math.random() * 60000) // a fresh checkpoint every try
     const seal = (s) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then((b) => '0x' + [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join(''))
     const fakeSeal = a.tampered ? await seal(`faked ${Date.now()}`) : a.real.sources.era5.hash
-    await gameChain.dc.write(K.era5, 'report', [season, 1, G.k, pm(a.mine.dry), fakeSeal])
-    const res = await gameChain.dc.write(K.power, 'report', [season, 1, G.k, pm(a.theirs.dry), a.both && a.tampered ? fakeSeal : a.real.sources.power.hash])
+    // The oracles run the data guard on what they received and post its verdict with the reading.
+    const v1 = a.tampered ? verdict(a.mine.score / a.mine.limit) : realVerdict('final', G.y, G.k, 'era5')
+    const v2 = a.both && a.tampered ? verdict(a.theirs.score / a.theirs.limit) : realVerdict('final', G.y, G.k, 'power')
+    await gameChain.dc.write(K.era5, 'report', [season, 1, G.k, pm(a.mine.dry), v1, fakeSeal])
+    const res = await gameChain.dc.write(K.power, 'report', [season, 1, G.k, pm(a.theirs.dry), v2, a.both && a.tampered ? fakeSeal : a.real.sources.power.hash])
     const paid = res.events.filter((e) => e.name === 'Paid'), amt = paid.reduce((s, e) => s + Number(e.args.amount / UNIT), 0)
     const r = $('g-result')
     if (res.events.some((e) => e.name === 'SourcesDisagree')) r.className = 'result no', r.innerHTML = '<b>Nothing paid.</b> The contract saw two records that disagree and refused. Your attempt is now on the public record for anyone to investigate.'
-    else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> With both feeds hacked the contract couldn't tell. But the AI check flagged it, and the seal proves the data was faked: you'd be caught.`
+    else if (res.events.some((e) => e.name === 'PayoutHeld')) {
+      r.className = 'result no'
+      r.innerHTML = `<b>Payout held for 14 days: the AI flagged the data.</b> Both records agree on a drought, but the guard says they don't look like real Ba weather, and its verdict is on-chain. No money moves while anyone can challenge it.<span class="tx">Held in block #${res.block}</span>`
+      await wait(1800)
+      const rej = await gameChain.dc.write(K.insurer, 'reject', [season, 1, G.k])
+      if (rej.events.some((e) => e.name === 'PayoutRejected'))
+        r.innerHTML += `<span class="step"><b>Day 3:</b> the insurer downloads both records from Copernicus and NASA. They don't match the seals you posted, so it rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
+    }
+    else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> Your fake was subtle enough to get past the AI check too, so nothing was held. But the seal proves the data was faked: anyone who checks it can prove the fraud, forever.`
     else r.className = 'result no', r.innerHTML = `<b>Nothing paid.</b> Even with your fake, it wasn't a drought. ${a.tampered ? '' : 'Try moving the slider.'}`
   } catch (e) {
     $('g-result').className = 'result no'
@@ -382,14 +426,16 @@ const ckWhat = () => { const k = +$('ck-dist').value, y = +$('ck-season').value;
 $('ck-dist').oninput = $('ck-season').oninput = ckWhat
 $('ck-other').onclick = () => { $('ck-pick').hidden = !$('ck-pick').hidden }
 const sha = async (rows) => '0x' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(rows))))].map((b) => b.toString(16).padStart(2, '0')).join('')
-async function liveRows(src, d, y) {
-  const from = `${y - 1}-11-01`, to = `${y}-04-30`
+const liveRows = (src, d, y) => fetchRows(src, d, `${y - 1}-11-01`, `${y}-04-30`)
+// Daily [date, rain, soil] straight from the public archives (both allow requests from any web page).
+async function fetchRows(src, d, from, to, signal) {
+  const json = (u) => fetch(u, { signal }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
   if (src === 'era5') {
     const base = `https://archive-api.open-meteo.com/v1/archive?latitude=${d.lat}&longitude=${d.lon}&start_date=${from}&end_date=${to}&timezone=Pacific%2FFiji`
-    const [p, s] = await Promise.all([fetch(`${base}&daily=precipitation_sum&models=era5`).then((r) => r.json()), fetch(`${base}&daily=soil_moisture_0_to_100cm_mean&models=era5_land`).then((r) => r.json())])
+    const [p, s] = await Promise.all([json(`${base}&daily=precipitation_sum&models=era5`), json(`${base}&daily=soil_moisture_0_to_100cm_mean&models=era5_land`)])
     return p.daily.time.map((t, i) => [t, p.daily.precipitation_sum[i], s.daily.soil_moisture_0_to_100cm_mean[i]])
   }
-  const j = await fetch(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=AG&longitude=${d.lon}&latitude=${d.lat}&start=${from.replaceAll('-', '')}&end=${to.replaceAll('-', '')}&format=JSON`).then((r) => r.json())
+  const j = await json(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=AG&longitude=${d.lon}&latitude=${d.lat}&start=${from.replaceAll('-', '')}&end=${to.replaceAll('-', '')}&format=JSON`)
   const { PRECTOTCORR: r, GWETROOT: w } = j.properties.parameter, fill = j.header.fill_value
   return Object.keys(r).map((k) => [`${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6)}`, r[k] === fill ? null : r[k], w[k] === fill ? null : w[k]])
 }
@@ -418,3 +464,130 @@ $('ck-go').onclick = async () => {
   btn.disabled = false
   btn.textContent = 'Download and check'
 }
+
+// ---------- 5. right now: the 2026–27 season, live ----------
+const FIJI = 12 * 3600e3 // Fiji is UTC+12
+const fijiDay = (ms) => new Date(ms + FIJI).toISOString().slice(0, 10)
+const dayName = (iso) => { const [y, m, d] = iso.split('-'); return `${+d} ${LONG[m - 1]} ${y}` }
+const degC = (x) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}°C`
+const NS = FC.now.season // the season ending in April of this year
+{
+  // This year's El Niño against 1997's, month by month.
+  const { then, now } = FC.compare, last = now.months.findLastIndex((v) => v != null)
+  $('nino-now').textContent = degC(now.months[last])
+  $('nino-now-l').textContent = `${LONG[last]} ${now.year}`
+  $('nino-then').textContent = degC(then.months[last])
+  document.querySelector('.nino .k').textContent = `Pacific Ocean warmth (Niño-3.4), ${LONG[last]}`
+  document.querySelector('.nino .then span').textContent = `${LONG[last]} ${then.year}, before the 1998 drought`
+  const x = (i) => 6 + (i / 11) * 288, y = (v) => 70 - ((v + 1) / 4) * 64
+  const line = (m, n) => m.slice(0, n).map((v, i) => `${x(i)},${y(v)}`).join(' ')
+  $('nino-spark').innerHTML = `<line x1="0" x2="300" y1="${y(0)}" y2="${y(0)}" class="zero"/><polyline points="${line(then.months, 12)}" class="then"/>` +
+    `<polyline points="${line(now.months, last + 1)}" class="now"/><circle cx="${x(last)}" cy="${y(now.months[last])}" r="4" class="now"/>`
+}
+// Countdown to the dates that matter (midnight in Fiji).
+const DATES = [
+  ['Cover sales close, season starts', Date.UTC(NS - 1, 9, 31, 12), `1 November ${NS - 1}`],
+  ['Early check: 30% if severe', Date.UTC(NS, 0, 31, 12), `31 January ${NS}`],
+  ['Final check', Date.UTC(NS, 3, 30, 12), `30 April ${NS}`],
+]
+function clock() {
+  $('now-clock').innerHTML = DATES.map(([what, at, when]) => {
+    const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5)
+    return `<div class="cd${ms <= 0 ? ' done' : ''}"><b>${ms <= 0 ? '✓' : d}</b><span>${ms <= 0 ? 'done' : `${d === 1 ? 'day' : 'days'} ${h} h`}</span><p>${what}<small>${when}</small></p></div>`
+  }).join('')
+}
+clock()
+setInterval(clock, 60_000)
+// The forecast and the price.
+{
+  const chance = FC.now.districts.reduce((a, d) => a + d.chance, 0) / D.length, price = FC.now.districts.reduce((a, d) => a + d.price, 0) / D.length
+  const P = FC.pricing, n = FC.history.length
+  const quiet = FC.history.filter((h) => h.nino >= 1 && h.districts.every((d) => !d.paid)).map((h) => h.season - 1)
+  $('fc-chance').textContent = `${Math.round(chance * 100)}%`
+  $('fc-base').textContent = `${Math.round(FC.base * 100)}%`
+  $('fc-text').innerHTML = `A small model trained on ${n} seasons (${season(FC.history[0].season)} to ${season(FC.history.at(-1).season)}) learned one thing: the warmer the Pacific in August and September, the likelier Fiji's cane districts are to be paid. ` +
+    `This year's reading (${degC(FC.now.nino)}) is beyond anything in its record, so it's treated as 1997-strength rather than guessed at. ` +
+    `It's a chance, not a promise: strong El Niños in ${quiet.join(' and ')} brought no drought payouts. ` +
+    `Tested on seasons it never saw, it beats always guessing the average by ${Math.round(FC.skill.score * 100)}%: modest, and honest.`
+  $('fc-price').textContent = F(price * 1000)
+  $('fc-why').innerHTML = `One flat price (${F(P.flat * 1000)} a year) only works if everyone buys every year. If people buy only when El Niño is showing, a flat-priced pool pays out <b>${P.flatLossRatio}×</b> what it takes in and goes broke. ` +
+    `Priced by the forecast, those same buyers get back <b>${P.forecastLossRatio}×</b> what they pay: fair to them, safe for the pool. Sales close on 1 November, before the season's rain is known. ` +
+    `A price this high in an El Niño year is where government or donor premium support matters most.`
+}
+// Today's readings: downloaded live from both archives, ranked like a checkpoint. Loaded when the section comes near.
+let NOWDATA = null
+async function track() {
+  NOWDATA ??= await get('now.json')
+  const from = `${NS - 1}-09-01`, to = [fijiDay(Date.now()), `${NS}-04-30`].sort()[0]
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20_000)
+  const clean = (rows) => rows.filter(([t]) => t >= from && t <= to && !t.endsWith('-02-29'))
+  let live = true
+  const got = await Promise.all(D.map(async (d) => {
+    try {
+      const [era5, power] = await Promise.all(['era5', 'power'].map((s) => fetchRows(s, d, from, to, ctl.signal)))
+      return { era5: clean(era5), power: clean(power) }
+    } catch { live = false; return { era5: NOWDATA.districts[d.key].era5.snapshot, power: NOWDATA.districts[d.key].power.snapshot } }
+  }))
+  clearTimeout(timer)
+  const started = got.every((g) => g.era5.length > SEASON_START && g.power.length > SEASON_START)
+  const res = got.map((g, k) => trackDistrict(g, NOWDATA.districts[KEYS[k]], started ? SEASON_START : 0))
+  const upto = res.map((r, k) => r && got[k].era5[r.to - 1][0]).filter(Boolean).sort()[0]
+  const dry = res.filter((r) => r && r.index <= 0.2).length
+  const cap = (t) => t[0].toUpperCase() + t.slice(1)
+  $('now-grid').innerHTML = `<p class="now-sum">${started ? `Season so far, 1 November to ${dayName(upto)}` : `Going into the season, 1 September to ${dayName(upto)}`}: ` +
+    `<b>${dry} of ${D.length} districts</b> are drier than 80% of years in the 30-year record.</p>` +
+    res.map((r, k) => r ? `<div class="nd"><div class="nd-h"><b>${D[k].name}</b><span>${D[k].island}</span></div>` +
+      `<div class="nd-v" style="--c:${colour(r.index)}">${cap(kind(r.index))}</div><p>${drierThan(r.index)}</p>` +
+      `<div class="nd-bar"><i style="width:${Math.max(3, (1 - r.index) * 100)}%;background:${colour(r.index)}"></i></div>` +
+      `<div class="nd-src"><span>Copernicus <b>${Math.round(r.era5.rain)} mm</b></span><span>NASA <b>${Math.round(r.power.rain)} mm</b></span>` +
+      `<em class="${r.gap <= IDX.rules.maxGap ? 'ok' : 'no'}">${r.gap <= IDX.rules.maxGap ? 'Records agree' : 'Records disagree'}</em></div></div>` : '').join('')
+  $('now-src').innerHTML = live
+    ? `<span class="live red"></span>Downloaded live just now from Copernicus ERA5 (via Open-Meteo) and NASA POWER, readings to ${dayName(upto)}. The newest days are preliminary and can still be revised. Ranked against 1991–2020, exactly as the contract ranks a checkpoint.${started ? '' : ' From 1 November this switches to the season window the contract judges.'}`
+    : `Couldn't reach the archives just now, so this is the copy saved on ${dayName(NOWDATA.lastDay)}. Reload to try again.`
+}
+new IntersectionObserver((e, o) => {
+  if (!e.some((x) => x.isIntersecting)) return
+  o.disconnect()
+  track().catch((err) => { $('now-grid').innerHTML = `<p class="now-wait">Couldn't load today's readings: ${err.message}</p>` })
+}, { rootMargin: '800px' }).observe($('now'))
+
+// ---------- 6. 1998 at Fiji's real scale ----------
+{
+  const s = SEASON[1998], per = GROWERS / D.length
+  const jan = s.early.reduce((a, r) => a + r.due, 0) * per * 1000, all = s.final.reduce((a, r, k) => a + Math.max(r.due, s.early[k].due), 0) * per * 1000
+  $('scale').innerHTML = `<span>At Fiji's real scale</span><p>About ${GROWERS.toLocaleString()} cane growers with F$1,000 of cover each: <b>${millions(jan)}</b> in January 1998 and <b>${millions(all)}</b> by the end of April, each paid the day its check closed.</p>`
+}
+
+// ---------- 7. for insurers and funders: does the pool survive? ----------
+let fPrice = 'forecast'
+function funders() {
+  const L = +$('f-load').value / 100, onlyElNino = $('f-elnino').checked, per = GROWERS / D.length, P = FC.pricing
+  $('f-load-v').textContent = `${Math.round(L * 100)}%`
+  // Each season: premiums collected at sale (before the season, priced by that year's forecast), then payouts by the rules.
+  const rows = FC.history.map((h) => {
+    const buys = !onlyElNino || h.nino >= 1
+    const prem = buys ? h.districts.reduce((a, d) => a + (fPrice === 'flat' ? P.flat : d.chance * P.shareWhenPaid), 0) * (1 + L) * per * 1000 : 0
+    const pay = buys ? h.districts.reduce((a, d) => a + d.paid, 0) * per * 1000 : 0
+    return { season: h.season, prem, pay }
+  })
+  let cum = 0, low = 0
+  for (const r of rows) cum += r.prem - r.pay, (r.cum = cum), (low = Math.min(low, cum))
+  const capital = -low, worst = rows.reduce((a, r) => (r.pay > a.pay ? r : a))
+  const totPrem = rows.reduce((a, r) => a + r.prem, 0), totPay = rows.reduce((a, r) => a + r.pay, 0)
+  // Chart: the pool (starting with just enough capital never to run dry) and each season's payouts.
+  const W = 900, H = 300, top = 16, bot = 30, max = Math.max(...rows.map((r) => capital + r.cum), ...rows.map((r) => r.pay), 1)
+  const bw = (W - 40) / rows.length, x = (i) => 30 + i * bw + bw / 2, y = (v) => H - bot - (v / max) * (H - top - bot)
+  const pool = rows.map((r, i) => `${x(i)},${y(capital + r.cum)}`).join(' ')
+  $('f-svg').innerHTML = rows.map((r, i) => r.pay ? `<rect class="out" x="${x(i) - bw * 0.32}" y="${y(r.pay)}" width="${bw * 0.64}" height="${H - bot - y(r.pay)}"><title>${r.season}: paid ${millions(r.pay)}</title></rect>` : '').join('') +
+    `<polygon class="pool-a" points="${x(0)},${H - bot} ${pool} ${x(rows.length - 1)},${H - bot}"/><polyline class="pool" points="${pool}"/>` +
+    `<line class="axis" x1="20" x2="${W - 6}" y1="${H - bot}" y2="${H - bot}"/>` +
+    rows.map((r, i) => (r.season % 5 === 0 || r.season === 1998) && r.season !== 2000 ? `<text x="${x(i)}" y="${H - 10}" class="${r.season === 1998 ? 'hl' : ''}">${r.season}</text>` : '').join('')
+  const ratio = totPay / totPrem, end = capital + cum
+  $('f-stats').innerHTML = `<div><b>${millions(worst.pay)}</b><span>worst season (${worst.season - 1}–${String(worst.season).slice(2)})</span></div>` +
+    `<div><b>${millions(capital)}</b><span>capital needed up front so the pool never runs dry</span></div>` +
+    `<div class="${end >= capital ? 'good' : 'bad'}"><b>${millions(end)}</b><span>in the pool after ${rows.length} seasons</span></div>` +
+    `<div class="${ratio <= 1 ? 'good' : 'bad'}"><b>${ratio.toFixed(2)}×</b><span>paid out per F$1 of premium</span></div>`
+}
+$('f-price').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; fPrice = b.dataset.p; for (const x of $('f-price').children) x.classList.toggle('on', x === b); funders() }
+$('f-load').oninput = $('f-elnino').oninput = funders
+funders()

@@ -12,6 +12,7 @@ const { DroughtCover, Refuser } = compile({
 })
 const { provider, insurer, era5, power, stranger } = local()
 const EARLY = 0, FINAL = 1, LAUTOKA = 0, BA = 2, LABASA = 6
+const OK = 200, FLAGGED = 1300 // data-guard verdicts (per mille of the flag threshold)
 const h = (s) => ethers.sha256(ethers.toUtf8Bytes(s)), eth = (n) => ethers.parseEther(String(n))
 
 const c = await new ethers.ContractFactory(DroughtCover.abi, DroughtCover.bytecode, insurer).deploy(era5.address, power.address)
@@ -40,48 +41,48 @@ async function reverts(p, error) {
 
 console.log('DroughtCover rules')
 await check('only the insurer issues policies', () => reverts(as(stranger).issue(stranger.address, 0, 1), 'NotInsurer'))
-await check('only the two oracles can report', () => reverts(as(stranger).report(1998, EARLY, LAUTOKA, 50, h('x')), 'NotOracle'))
-await check('a reading needs its data fingerprint', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 50, ethers.ZeroHash), 'BadReading'))
+await check('only the two oracles can report', () => reverts(as(stranger).report(1998, EARLY, LAUTOKA, 50, OK, h('x')), 'NotOracle'))
+await check('a reading needs its data fingerprint', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 50, OK, ethers.ZeroHash), 'BadReading'))
 await check('one oracle alone cannot trigger a payout', async () => {
   const before = await bal(farmers[0])
-  await (await as(era5).report(1998, EARLY, LAUTOKA, 60, h('era5 jan'))).wait()
+  await (await as(era5).report(1998, EARLY, LAUTOKA, 60, OK, h('era5 jan'))).wait()
   if ((await bal(farmers[0])) !== before) throw new Error('paid on one source')
 })
-await check('an oracle cannot report twice', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 10, h('again')), 'AlreadyReported'))
+await check('an oracle cannot report twice', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 10, OK, h('again')), 'AlreadyReported'))
 await check('second source agrees: early 30% paid to every farmer in the district at once', async () => {
-  const rc = await (await as(power).report(1998, EARLY, LAUTOKA, 80, h('power jan'))).wait()
+  const rc = await (await as(power).report(1998, EARLY, LAUTOKA, 80, OK, h('power jan'))).wait()
   const paid = events(rc, 'Paid')
   if (paid.length !== 3) throw new Error(`${paid.length} paid`)
   for (const f of farmers.slice(0, 3)) if ((await bal(f)) !== eth(0.3)) throw new Error('wrong amount')
   if ((await bal(farmers[3])) !== 0n) throw new Error('paid another district')
 })
-await check('a settled checkpoint cannot be reported again', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 5, h('late')), 'AlreadySettled'))
+await check('a settled checkpoint cannot be reported again', () => reverts(as(era5).report(1998, EARLY, LAUTOKA, 5, OK, h('late')), 'AlreadySettled'))
 await check('final checkpoint pays the rest (100% total, not 130%)', async () => {
-  await (await as(era5).report(1998, FINAL, LAUTOKA, 30, h('era5 apr'))).wait()
-  await (await as(power).report(1998, FINAL, LAUTOKA, 30, h('power apr'))).wait()
+  await (await as(era5).report(1998, FINAL, LAUTOKA, 30, OK, h('era5 apr'))).wait()
+  await (await as(power).report(1998, FINAL, LAUTOKA, 30, OK, h('power apr'))).wait()
   for (const f of farmers.slice(0, 3)) if ((await bal(f)) !== eth(1)) throw new Error(`balance ${ethers.formatEther(await bal(f))}`)
 })
 await check('sources disagree: nothing pays and it is logged', async () => {
-  await (await as(era5).report(1998, FINAL, BA, 20, h('era5 fake'))).wait() // e.g. a tampered "driest on record"
-  const rc = await (await as(power).report(1998, FINAL, BA, 600, h('power apr ba'))).wait()
+  await (await as(era5).report(1998, FINAL, BA, 20, OK, h('era5 fake'))).wait() // e.g. a tampered "driest on record"
+  const rc = await (await as(power).report(1998, FINAL, BA, 600, OK, h('power apr ba'))).wait()
   if (!events(rc, 'SourcesDisagree').length) throw new Error('no SourcesDisagree')
   if ((await bal(farmers[3])) !== 0n) throw new Error('paid despite disagreement')
 })
 await check('moderate drought: half cover', async () => {
-  await (await as(era5).report(2010, FINAL, BA, 180, h('a'))).wait()
-  await (await as(power).report(2010, FINAL, BA, 150, h('b'))).wait()
+  await (await as(era5).report(2010, FINAL, BA, 180, OK, h('a'))).wait()
+  await (await as(power).report(2010, FINAL, BA, 150, OK, h('b'))).wait()
   if ((await bal(farmers[3])) !== eth(1)) throw new Error(`balance ${ethers.formatEther(await bal(farmers[3]))}`)
 })
 await check('normal season: nothing pays', async () => {
-  await (await as(era5).report(2011, FINAL, BA, 640, h('c'))).wait()
-  const rc = await (await as(power).report(2011, FINAL, BA, 700, h('d'))).wait()
+  await (await as(era5).report(2011, FINAL, BA, 640, OK, h('c'))).wait()
+  const rc = await (await as(power).report(2011, FINAL, BA, 700, OK, h('d'))).wait()
   if (events(rc, 'Paid').length) throw new Error('paid in a normal season')
 })
 await check('the pool must cover every payout before anyone is paid', async () => {
   const big = ethers.Wallet.createRandom().address
   await (await c.issue(big, LABASA, eth(1000))).wait()
-  await (await as(era5).report(1998, FINAL, LABASA, 10, h('e'))).wait()
-  await reverts(as(power).report(1998, FINAL, LABASA, 10, h('f')), 'PoolTooSmall')
+  await (await as(era5).report(1998, FINAL, LABASA, 10, OK, h('e'))).wait()
+  await reverts(as(power).report(1998, FINAL, LABASA, 10, OK, h('f')), 'PoolTooSmall')
   if ((await bal(big)) !== 0n) throw new Error('partially paid')
 })
 await check('a wallet that refuses payment cannot block the district; its money waits for it', async () => {
@@ -90,10 +91,42 @@ await check('a wallet that refuses payment cannot block the district; its money 
   const normal = ethers.Wallet.createRandom().address, R = await ref.getAddress()
   await (await c.issue(R, 4, eth(1))).wait()
   await (await c.issue(normal, 4, eth(1))).wait()
-  await (await as(era5).report(1998, FINAL, 4, 10, h('g'))).wait()
-  const rc = await (await as(power).report(1998, FINAL, 4, 10, h('i'))).wait()
+  await (await as(era5).report(1998, FINAL, 4, 10, OK, h('g'))).wait()
+  const rc = await (await as(power).report(1998, FINAL, 4, 10, OK, h('i'))).wait()
   if ((await bal(normal)) !== eth(1)) throw new Error('normal farmer not paid')
   if (!events(rc, 'Held').length || (await c.owed(R)) !== eth(1)) throw new Error('refused payment not held')
+})
+await check('flagged data: a payout that is due is held, not paid', async () => {
+  const f = ethers.Wallet.createRandom().address
+  await (await c.issue(f, 5, eth(1))).wait()
+  await (await as(era5).report(1998, FINAL, 5, 20, FLAGGED, h('j'))).wait()
+  const rc = await (await as(power).report(1998, FINAL, 5, 30, OK, h('k'))).wait()
+  if (!events(rc, 'PayoutHeld').length || events(rc, 'Paid').length) throw new Error('not held')
+  if ((await bal(f)) !== 0n) throw new Error('paid while flagged')
+  await reverts(c.release(1998, FINAL, 5), 'ChallengeOpen')
+  await reverts(as(stranger).reject(1998, FINAL, 5), 'NotInsurer')
+  // the challenge period passes with no challenge: anyone can release it
+  await provider.send('evm_increaseTime', [14 * 86400]); await provider.send('evm_mine', [])
+  await reverts(c.reject(1998, FINAL, 5), 'ChallengeClosed')
+  await (await as(stranger).release(1998, FINAL, 5)).wait()
+  if ((await bal(f)) !== eth(1)) throw new Error('not paid after release')
+  await reverts(c.release(1998, FINAL, 5), 'NothingHeld')
+})
+await check('flagged data: the insurer can reject during the challenge period', async () => {
+  const f = ethers.Wallet.createRandom().address
+  await (await c.issue(f, 7, eth(1))).wait()
+  await (await as(era5).report(2011, FINAL, 7, 20, FLAGGED, h('l'))).wait()
+  await (await as(power).report(2011, FINAL, 7, 20, FLAGGED, h('m'))).wait()
+  const rc = await (await c.reject(2011, FINAL, 7)).wait()
+  if (!events(rc, 'PayoutRejected').length) throw new Error('no PayoutRejected')
+  await provider.send('evm_increaseTime', [14 * 86400]); await provider.send('evm_mine', [])
+  await reverts(c.release(2011, FINAL, 7), 'NothingHeld')
+  if ((await bal(f)) !== 0n) throw new Error('paid after rejection')
+})
+await check('flagged data with nothing due is not held (normal seasons are never delayed)', async () => {
+  await (await as(era5).report(2012, FINAL, 7, 700, FLAGGED, h('n'))).wait()
+  const rc = await (await as(power).report(2012, FINAL, 7, 650, OK, h('o'))).wait()
+  if (events(rc, 'PayoutHeld').length) throw new Error('held with nothing due')
 })
 await check('the published rule matches scripts/rules.mjs', async () => {
   const { RULES } = await import('./rules.mjs')

@@ -12,8 +12,11 @@
 <body>
   <header class="top">
     <a class="brand" href="#"><span class="logo" aria-hidden="true"><i></i></span>Proof of Drought</a>
+    <a class="banner" href="#now"><span class="live red"></span><b>Live</b><span class="long">A 1998-strength El Niño is under way. See what the contract sees today</span><span class="short">El Niño 2026–27: see today's readings</span> →</a>
     <nav>
+      <a href="#now">Right now</a>
       <a href="#record">Track record</a>
+      <a href="#funders">For insurers</a>
       <a href="#cheat">Can it be cheated?</a>
       <a href="#check">Check the data</a>
     </nav>
@@ -47,6 +50,20 @@
     <div class="phone" aria-label="Your phone">
       <div class="notch"></div>
       <div class="lock">
+        <div class="views" role="tablist" aria-label="Whose view"><button class="on" data-v="farmer" role="tab" aria-selected="true">Farmer</button><button data-v="insurer" role="tab" aria-selected="false">Insurer</button></div>
+        <div class="ins" id="ins" hidden>
+          <p class="ins-h">The pool, live from the contract</p>
+          <div class="ins-big"><span>In the pool</span><b id="in-pool">F$0</b></div>
+          <dl class="ins-rows">
+            <div><dt>Paid out this season</dt><dd id="in-paid">F$0</dd></div>
+            <div><dt>Farmers paid</dt><dd id="in-farmers">0 of 96</dd></div>
+            <div><dt>Districts settled</dt><dd id="in-settled">0 of 16</dd></div>
+            <div><dt>Records disagreed</dt><dd id="in-disagree">0</dd></div>
+            <div><dt>Held for review (AI flag)</dt><dd id="in-held">0</dd></div>
+          </dl>
+          <div class="ins-scale"><span>At Fiji's scale: about 10,200 cane growers</span><b id="in-scale">F$0</b><small>paid out so far this season</small></div>
+          <a class="ins-more" href="#funders">Will the pool survive 45 years? ↓</a>
+        </div>
         <p class="l-date" id="ph-date">Your cane farm</p>
         <p class="l-time" id="ph-time">Ba</p>
         <div class="wallet"><span>Mobile wallet</span><b id="ph-bal">F$0</b></div>
@@ -68,6 +85,38 @@
   </section>
 
   <main>
+    <!-- Right now: the 2026–27 season, live -->
+    <section class="now-sec" id="now">
+      <div class="head">
+        <p class="eyebrow"><span class="live red"></span>Right now · the 2026–27 season</p>
+        <h2>A 1998-strength El Niño is under way. Here's what the contract sees today.</h2>
+        <p>The last time the Pacific looked like this, Fiji's cane belt went eleven months without enough rain. This page downloads the latest Copernicus and NASA readings for every cane district as you read it, and ranks them exactly as the contract will.</p>
+      </div>
+      <div class="now-top">
+        <div class="nino">
+          <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
+          <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
+          <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <p class="fine">Above normal, January–September. Source: NOAA Climate Prediction Center (OISST, 1991–2020 normal). NOAA's 8 October update expects a strong to very strong El Niño through early 2027.</p>
+        </div>
+        <div class="clock" id="now-clock"></div>
+      </div>
+      <div class="now-grid" id="now-grid"><p class="now-wait">Downloading today's readings from Copernicus and NASA…</p></div>
+      <p class="now-src" id="now-src"></p>
+      <div class="ai-row">
+        <div class="ai-card">
+          <p class="k">AI forecast · chance a district pays this season</p>
+          <div class="ai-big"><b id="fc-chance">61%</b><span>In an ordinary year: <b id="fc-base">17%</b></span></div>
+          <p id="fc-text"></p>
+        </div>
+        <div class="ai-card price">
+          <p class="k">Price that can't be gamed</p>
+          <div class="ai-big"><b id="fc-price">F$380</b><span>this season, per F$1,000 of cover, before costs</span></div>
+          <p id="fc-why"></p>
+        </div>
+      </div>
+    </section>
+
     <!-- Then vs now -->
     <section class="contrast">
       <div class="c-row">
@@ -89,7 +138,8 @@
           </ul>
         </div>
       </div>
-      <p class="src">Source: UN OCHA, Fiji Drought Situation Report No. 2, 16 December 1998. Payout dates: this project's test on real Copernicus and NASA data.</p>
+      <div class="scale" id="scale"></div>
+      <p class="src">Source: UN OCHA, Fiji Drought Situation Report No. 2, 16 December 1998. Payout dates: this project's test on real Copernicus and NASA data. Grower count: about 10,200 active cane farmers (Prime Minister Sitiveni Rabuka, reported by the Fiji Times, October 2025).</p>
     </section>
 
     <!-- Track record -->
@@ -106,6 +156,28 @@
         <div><h3>What would you have received?</h3><p>Every payout the rules would have made for F$1,000 of cover since 1982.</p>
           <select id="f-dist" aria-label="District"></select></div>
         <div class="calc-out" id="calc"></div>
+      </div>
+    </section>
+
+    <!-- Insurers and funders -->
+    <section class="funders" id="funders">
+      <div class="head">
+        <p class="eyebrow">For insurers and funders</p>
+        <h2>Does the pool survive? 45 years at Fiji's scale.</h2>
+        <p>About 10,200 cane growers with F$1,000 of cover each, every season since 1983, paid by the same rules and priced by the El Niño forecast made before each season began.</p>
+      </div>
+      <div class="f-ctl">
+        <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Priced by the El Niño forecast</button><button data-p="flat">One flat price</button></div>
+        <label class="f-load">Margin for costs and capital <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
+        <label class="tog"><input type="checkbox" id="f-elnino" /><span>Farmers only buy when El Niño is showing</span></label>
+      </div>
+      <div class="f-chart"><svg id="f-svg" viewBox="0 0 900 300" preserveAspectRatio="none" role="img" aria-label="Pool balance by season"></svg><div class="f-key"><span><i class="pool"></i>Money in the pool</span><span><i class="out"></i>Paid out that season</span></div></div>
+      <div class="f-stats" id="f-stats"></div>
+      <div class="audit">
+        <div><b>Every payout is a transaction</b><p>Who was paid, how much and why, in the contract's public log. Open "On-chain record" in the player above.</p></div>
+        <div><b>Every reading is sealed</b><p>A SHA-256 fingerprint of the raw daily data, checkable against Copernicus and NASA by anyone. <a href="#check">Try it</a>.</p></div>
+        <div><b>Suspicious data waits</b><p>If the AI guard flags a reading, the payout is held for 14 days so it can be challenged. In 45 years of real data, it never delayed a real payout.</p></div>
+        <div><b>Every rule is tested</b><p>17 automatic checks on the contract, from "one source alone can't trigger a payout" to "the pool must cover everyone before anyone is paid".</p></div>
       </div>
     </section>
 
@@ -152,12 +224,12 @@
 
     <section class="real">
       <div class="r-grid">
-        <div><h3>Real</h3><p>45 years of daily rainfall and soil moisture for Fiji's 8 cane districts from Copernicus ERA5 and NASA POWER · Fiji's cane harvests (FAOSTAT) · the 1998 timeline (UN OCHA) · the smart contract, running on a real Ethereum virtual machine in your browser</p></div>
-        <div><h3>Simulated</h3><p>The 96 farmers, their wallets and the money are test versions · district points are approximate · the payout rules are this project's proposal; a real scheme would set them with an insurer and the regulator</p></div>
+        <div><h3>Real</h3><p>45 years of daily rainfall and soil moisture for Fiji's 8 cane districts from Copernicus ERA5 and NASA POWER, and today's readings, downloaded live · the El Niño record (NOAA) · Fiji's cane harvests (FAOSTAT) · the 1998 timeline (UN OCHA) · the smart contract, running on a real Ethereum virtual machine in your browser</p></div>
+        <div><h3>Simulated</h3><p>The 96 farmers, their wallets and the money are test versions · district points are approximate · the payout rules and pricing margin are this project's proposal; a real scheme would set them with an insurer and the regulator</p></div>
         <div><h3>Built for COP31</h3><p>COP31 meets in Antalya in November 2026. Its Pre-COP ministers met in October in Nadi, Fiji, one of the eight districts this cover protects. It builds on parametric insurance already working in the Pacific (PCRIC, UNDP's PICAP).</p></div>
       </div>
-      <p class="foot">Satellite basemap: Sentinel-2 cloudless – <a href="https://s2maps.eu">https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0. Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Yields: FAOSTAT.</p>
-      <p class="foot">Built by Tia · IEEE ClimateChain Global Hackathon 2026, Climate Data &amp; Environmental Monitoring · <a href="https://github.com/tiasella1802-alt/Proof-of-drought">Source code</a></p>
+      <p class="foot">Satellite basemap: Sentinel-2 cloudless – <a href="https://s2maps.eu">https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0. Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Niño-3.4: NOAA Climate Prediction Center. Yields: FAOSTAT.</p>
+      <p class="foot">Built by Tia · IEEE ClimateChain Global Hackathon 2026, Climate Data &amp; Environmental Monitoring · <a href="https://github.com/tiasella1802-alt/Proof-of-Drought">Source code</a></p>
     </section>
   </main>
   <script type="module" src="/src/main.js"></script>

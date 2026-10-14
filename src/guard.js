@@ -1,7 +1,7 @@
 // Data guard: an anomaly-detection model that flags weather data that doesn't behave like real Fiji weather.
 // Shared by the training script (Node) and the browser, so the "try to fake a drought" demo runs the real model.
 //
-// For one data source, one district and one season (Nov–Apr) it looks at three things real data keeps consistent:
+// For one data source, one district and one season window (Nov–Apr for the final check, Nov–Jan for the early one) it looks at three things real data keeps consistent:
 //   1. rain vs soil:  the season's rainfall percentile minus its soil-moisture percentile (dry rain → dry soil)
 //   2. neighbours:    the district's dryness minus the mean of the other districts (seasons are regional)
 //   3. physics:       how well each day's soil-moisture change follows from that day's and the day before's rain,
@@ -9,7 +9,8 @@
 // Training learns the mean and covariance of these three features over real seasons. A reading's anomaly score is its
 // Mahalanobis distance from that cloud; above the threshold (the 99th percentile of real readings) it is flagged.
 
-export const inSeason = (t, y) => { const yy = +t.slice(0, 4), m = +t.slice(5, 7); return (yy === y - 1 && m >= 11) || (yy === y && m <= 4) }
+// last = the window's last month: 4 (April, final check) or 1 (January, early check).
+export const inSeason = (t, y, last = 4) => { const yy = +t.slice(0, 4), m = +t.slice(5, 7); return (yy === y - 1 && m >= 11) || (yy === y && m <= last) }
 
 // Least squares for the daily water balance: Δsoil = a·ln(1+rain) + b·ln(1+rain yesterday) + c·(soil yesterday − mean) + d
 export function fitPhysics(days, from = 1991, to = 2020) {
@@ -43,18 +44,18 @@ function solve(A, B) { // Gauss–Jordan with partial pivoting, small dense syst
 }
 
 // Season totals from daily rows [date, rain mm, soil] (rain summed, soil averaged).
-export function seasonAgg(days, y) {
+export function seasonAgg(days, y, last = 4) {
   let rain = 0, soil = 0, n = 0
-  for (const [t, r, s] of days) if (inSeason(t, y)) { rain += r ?? 0; if (s != null) soil += s, n++ }
+  for (const [t, r, s] of days) if (inSeason(t, y, last)) { rain += r ?? 0; if (s != null) soil += s, n++ }
   return [rain, soil / n]
 }
 
 // Log mean squared standardised error of the water balance over the season (≈0 for real data).
-export function physicsScore(days, y, m) {
+export function physicsScore(days, y, m, last = 4) {
   let ss = 0, n = 0
   for (let i = 1; i < days.length; i++) {
     const [t, r, s] = days[i], [, r1, s1] = days[i - 1]
-    if (!inSeason(t, y) || s == null || s1 == null) continue
+    if (!inSeason(t, y, last) || s == null || s1 == null) continue
     const p = m.w[0] * Math.log1p(r ?? 0) + m.w[1] * Math.log1p(r1 ?? 0) + m.w[2] * (s1 - m.mean) + m.w[3]
     const e = (s - s1 - p) / m.sd
     ss += e * e, n++
@@ -66,10 +67,10 @@ export const pct = (v, base) => base.filter((b) => b <= v).length / base.length
 
 // The three features for district k. seasons[j] = [rain, soil] for every district this season (k's may be tampered);
 // base[j] = { rain: [...], soil: [...] } baseline totals; days = k's daily rows (possibly tampered); phys = k's model.
-export function features(k, seasons, base, days, y, phys) {
+export function features(k, seasons, base, days, y, phys, last = 4) {
   const dry = seasons.map(([r, s], j) => { const rp = pct(r, base[j].rain), sp = pct(s, base[j].soil); return { rp, sp, d: (rp + sp) / 2 } })
   const others = dry.filter((_, j) => j !== k)
-  return [dry[k].rp - dry[k].sp, dry[k].d - others.reduce((a, o) => a + o.d, 0) / others.length, physicsScore(days, y, phys)]
+  return [dry[k].rp - dry[k].sp, dry[k].d - others.reduce((a, o) => a + o.d, 0) / others.length, physicsScore(days, y, phys, last)]
 }
 
 export function fitGaussian(rows) {
