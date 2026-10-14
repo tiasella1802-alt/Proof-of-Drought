@@ -380,12 +380,12 @@ function renderGame() {
   }
   const caught = a.mine.flagged || (a.both && a.theirs.flagged)
   shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (strangeness ${a.mine.score.toFixed(1)}; anything over ${a.mine.limit.toFixed(1)} gets flagged). This warning is recorded publicly, and any payout waits 14 days so it can be checked.`
-    : `<b>Slipped past.</b> Small fakes can look natural (strangeness ${a.mine.score.toFixed(1)}; the flag goes up over ${a.mine.limit.toFixed(1)}). That's why it's not the only shield.`, 'Caught you')
+    : `<b>Slipped past.</b> Small fakes can look natural (strangeness ${a.mine.score.toFixed(1)}; the flag goes up over ${a.mine.limit.toFixed(1)}). The other two shields still apply.`, 'Caught you')
   shield('s2', a.agree ? (a.wouldPay ? 'pass' : '') : 'stop', !a.agree
     ? `<b>Blocked.</b> ${a.both ? 'Even faked, the two records' : `NASA says Ba's season was ${was(a.theirs.dry)}; you say ${was(a.mine.dry)}. They`} don't agree, so nothing pays.`
     : a.wouldPay ? `<b>Bypassed.</b> You faked both records so they agree on a ${kind((a.mine.dry + a.theirs.dry) / 2)}.`
     : `Your fake is too small to matter: the records still agree it was ${was((a.mine.dry + a.theirs.dry) / 2)}.`)
-  shield('s3', 'stop', '<b>Exposed.</b> Your data no longer matches the seal anyone can check against Copernicus and NASA. The fraud is provable forever.', 'Exposed you')
+  shield('s3', 'stop', '<b>Exposed.</b> Your data no longer matches the seal, and anyone can check it against Copernicus and NASA to prove it was faked.', 'Exposed you')
 }
 $('g-rain').oninput = $('g-both').oninput = renderGame
 renderGame()
@@ -419,7 +419,7 @@ $('g-go').onclick = async () => {
       if (rej.events.some((e) => e.name === 'PayoutRejected'))
         r.innerHTML += `<span class="step"><b>Day 3:</b> both guards flagged it, so the insurer may reject it: it downloads both records from Copernicus and NASA, they don't match the seals you posted, and it rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
     }
-    else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> Your fake was subtle enough to get past the AI check too, so nothing was held. But the seal proves the data was faked: anyone who checks it can prove the fraud, forever.`
+    else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> Your fake was subtle enough to get past the AI check too, so nothing was held. Anyone who checks the seal against Copernicus and NASA can still prove the data was faked.`
     else r.className = 'result no', r.innerHTML = `<b>Nothing paid.</b> Even with your fake, it wasn't a drought. ${a.tampered ? '' : 'Try moving the slider.'}`
   } catch (e) {
     $('g-result').className = 'result no'
@@ -514,14 +514,14 @@ const NS = FC.now.season // the season ending in April of this year
 }
 // Countdown to the dates that matter (midnight in Fiji).
 const DATES = [
-  ['Cover sales close, season starts', Date.UTC(NS - 1, 9, 31, 12), `1 November ${NS - 1}`],
-  ['Early check: pays 30% in a severe drought', Date.UTC(NS, 0, 31, 12), `31 January ${NS}`],
+  ['Sales close', Date.UTC(NS - 1, 9, 31, 12), `1 November ${NS - 1}`],
+  ['Early check', Date.UTC(NS, 0, 31, 12), `31 January ${NS}`],
   ['Final check', Date.UTC(NS, 3, 30, 12), `30 April ${NS}`],
 ]
 function clock() {
   $('now-clock').innerHTML = DATES.map(([what, at, when]) => {
-    const ms = at - Date.now(), d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5)
-    return `<div class="cd${ms <= 0 ? ' done' : ''}"><b>${ms <= 0 ? '✓' : d}</b><span>${ms <= 0 ? 'done' : `${d === 1 ? 'day' : 'days'} ${h} h`}</span><p>${what}<small>${when}</small></p></div>`
+    const ms = at - Date.now(), d = Math.ceil(ms / 864e5)
+    return `<span class="cd${ms <= 0 ? ' done' : ''}">${what} (${when}): <b>${ms <= 0 ? 'done ✓' : `in ${d} ${d === 1 ? 'day' : 'days'}`}</b></span>`
   }).join('')
 }
 clock()
@@ -533,7 +533,7 @@ setInterval(clock, 60_000)
   const quiet = FC.history.filter((h) => h.nino >= 1 && h.districts.every((d) => !d.paid)).map((h) => season(h.season))
   $('fc-chance').textContent = `${Math.round(chance * 100)}%`
   $('fc-base').textContent = `${Math.round(FC.base * 100)}%`
-  $('fc-text').innerHTML = `We taught a simple computer model using ${n} past seasons. It learned that when the Pacific Ocean is warmer than usual in August and September (El Niño), droughts are much more likely. This year the ocean is warmer than in any of them. It's a chance, not a promise: in ${quiet.join(' and ')} the ocean was warm too, and no drought payout was needed.`
+  $('fc-text').innerHTML = `We taught a simple computer model using ${n} past seasons. It learned that when the Pacific Ocean is warmer than usual in August and September (El Niño), droughts are much more likely. This year the ocean is warmer than in any of them. It can be wrong: in ${quiet.join(' and ')} the ocean was warm too, and no drought payout was needed.`
   $('fc-price').textContent = F(price * 1000)
   $('fc-why').innerHTML = `If the price never changed, people would only buy when a drought was coming, and the pool would pay out about F$${Math.round(P.flatLossRatio)} for every F$1 it took in. So the price rises in risky years and falls in calm ones. Sales close on 1 November, before anyone knows how much rain will fall.`
 }

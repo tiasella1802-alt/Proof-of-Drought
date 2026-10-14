@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Proof of Drought</title>
-  <meta name="description" content="Drought insurance for Fiji's sugarcane farmers that pays automatically when satellites prove a drought. No forms, no assessors, no waiting." />
+  <meta name="description" content="Drought insurance for Fiji's sugarcane farmers that pays automatically when two satellite records show a drought." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -30,7 +30,7 @@
     <div class="pitch">
       <p class="chip"><span class="live"></span>For Fiji's sugarcane farmers</p>
       <h1>Drought insurance that <em>pays itself.</em></h1>
-      <p class="lede">Satellites check the rain. If it fails, every insured farmer is paid automatically, straight to their phone. No claim forms, no waiting.</p>
+      <p class="lede">Satellites check the rain. If it fails, every insured farmer is paid automatically, straight to their phone, without filing a claim.</p>
       <div class="cta1">
         <button class="btn hot go pulse" id="go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Watch the 1998 drought</span></button>
         <button class="lnk" id="try-other" aria-expanded="false" aria-controls="try">Try another farm or year</button>
@@ -158,7 +158,7 @@
     <section class="now-sec" id="now">
       <div class="head">
         <p class="eyebrow"><span class="live red"></span>Right now · the 2026–27 season</p>
-        <h2>A 1998-strength El Niño is under way. Here's what the contract sees today.</h2>
+        <h2>A 1998-strength El Niño is under way. This is what the contract sees today.</h2>
         <p>The last time the Pacific looked like this, Fiji's cane belt went eleven months without enough rain. These are today's Copernicus and NASA readings, ranked exactly as the contract will rank them.</p>
       </div>
       <div class="ai-row">
@@ -170,18 +170,19 @@
         </div>
         <div class="ai-card price">
           <p class="k">The price</p>
-          <p class="one"><b id="fc-price">F$380</b> per F$1,000 of cover: priced by the forecast, so nobody can game it by buying only in El Niño years.</p>
+          <div class="ai-big"><b id="fc-price" class="mid">F$380</b></div>
+          <p class="one">per F$1,000 of cover this season. The price follows the El Niño forecast, so nobody can game it by buying only in risky years.</p>
           <details><summary>How we know</summary><p id="fc-why"></p></details>
         </div>
       </div>
       <div class="now-top">
+        <div class="clock" id="now-clock"></div>
         <div class="nino">
           <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
           <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
           <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
           <p class="fine">Degrees warmer than normal, January to September. Source: NOAA Climate Prediction Center, which expects a strong El Niño to last into early 2027.</p>
         </div>
-        <div class="clock" id="now-clock"></div>
       </div>
       <div class="now-grid" id="now-grid"></div>
       <p class="now-src" id="now-src"></p>
@@ -214,7 +215,7 @@
     <section class="check" id="check">
       <div class="head">
         <p class="eyebrow">Check the data</p>
-        <h2>Don't trust us. Check it.</h2>
+        <h2>Check the data yourself.</h2>
         <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus and NASA, right now, and see if it matches.</p>
       </div>
       <div class="ck">

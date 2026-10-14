@@ -70,7 +70,7 @@ Each oracle posts the guard's verdict on-chain with its reading (the score as a 
 The guard is one of three locks: the contract also requires two independent agencies' data to agree, and every reading's fingerprint can be checked against the public archives by anyone. In the website's "fake a drought" game, hacking both feeds hard enough to trigger a payout gets the payout held and then rejected. A fake subtle enough to slip past the guard would be paid, but it stays provably different from the archives, permanently. The guard runs inside the oracles, so it protects against faked *data*; stolen oracle *keys* could post a false verdict, which is what the public seal is for.
 
 **Threat model for the hold.** Who could stop a real payout?
-- One oracle alone, or the insurer plus one colluding oracle posting a false flag: they can **delay** it by 14 days, not cancel it, because rejection needs both guards' flags.
+- One oracle alone, or the insurer plus one colluding oracle posting a false flag: they can **delay** it by 14 days but can't cancel it, because rejection needs both guards' flags.
 - Both oracles plus the insurer: they could cancel it, in public, with the real data still in the archives to prove it. A real scheme would make the oracles independent organisations (or a multisig) and could hand rejection to an independent arbiter.
 
 ### Forecast: the chance a district pays this season
@@ -78,8 +78,8 @@ The guard is one of three locks: the contract also requires two independent agen
 One input, known by early October, a month before cover is sold: the Niño-3.4 sea-surface temperature anomaly averaged over August and September (NOAA CPC). Logistic regression over every district and season since 1983, tested by leaving one whole season out at a time.
 
 - In an ordinary season, 17% of districts are paid. For 2026–27 the model says **61%**.
-- Skill against always guessing the average: 5.5% better (Brier score, on seasons it never saw). Modest, and reported as such: the 1987–88 and 2023–24 seasons had strong El Niños and brought no drought payouts.
-- This year's El Niño is stronger than any in the training seasons, so it is treated as being as strong as the strongest one seen (1997) rather than extrapolated.
+- Skill against always guessing the average: 5.5% better (Brier score, on seasons it never saw). That is a small improvement. The 1987–88 and 2023–24 seasons had strong El Niños and brought no drought payouts.
+- This year's El Niño is stronger than any in the training seasons, so the model treats it as being as strong as the strongest one it has seen (1997).
 - We tried adding each district's September soil moisture. It barely changed the skill and its weight pointed the wrong way, so it was left out.
 
 ### Pricing that can't be gamed

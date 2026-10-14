@@ -520,3 +520,20 @@ details p b { color: #fff; font-family: var(--mono); }
 .f-verdict { margin-top: 16px; padding: 14px 18px; border-radius: 16px; font-size: 15.5px; }
 .f-verdict.good { background: #e6faf1; color: #0b5e3c; }
 .f-verdict.bad { background: #fdecea; color: #8c1d12; }
+
+/* Right now: equal cards, a one-line countdown, the El Niño card using the full width */
+.ai-row { align-items: stretch; }
+.ai-card.price { align-self: stretch; }
+.now-top { grid-template-columns: 1fr; }
+.clock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 32px; padding: 16px 22px; }
+.clock .cd { padding: 0; background: none; box-shadow: none; font-size: 15px; color: #c5cee0; }
+.clock .cd b { font-family: var(--mono); font-size: 15px; color: #fff; }
+.clock .cd:first-child { background: none; box-shadow: none; }
+.clock .cd:first-child b { color: #b8a6ff; }
+.clock .cd.done b { color: var(--cash); }
+.nino { display: grid; grid-template-columns: minmax(280px, auto) 1fr; column-gap: 36px; align-items: center; }
+.nino .k, .nino .fine { grid-column: 1 / -1; }
+@media (max-width: 760px) { .nino { grid-template-columns: 1fr; } }
+.ai-card { display: flex; flex-direction: column; }
+.ai-card details { margin-top: auto; padding-top: 14px; }
+.ai-big > b.mid { font-size: clamp(44px, 4.6vw, 60px); color: var(--cash); }
