@@ -303,6 +303,7 @@ $('try-other').onclick = () => {
   $('try').hidden = !open
   $('try-other').setAttribute('aria-expanded', open)
   $('try-other').textContent = open ? 'Hide the picker' : 'Try another farm or year'
+  document.querySelector('.pitch').classList.toggle('picking', open) // make room: the intro has been read by now
 }
 drawStrip()
 load(year)
@@ -368,7 +369,7 @@ function shield(id, state, html, held = 'Stopped you') {
 }
 function renderGame() {
   const a = attack()
-  $('g-rain-v').textContent = a.f === 1 ? '100% of what fell' : `${Math.round(a.f * 100)}% of what fell`
+  $('g-rain-v').textContent = a.f === 1 ? 'the true amount' : a.f === 0 ? 'no rain at all' : `only ${Math.round(a.f * 100)}% of the true amount`
   $('g-result').innerHTML = ''
   $('g-result').className = 'result'
   if (!a.tampered) {
@@ -378,8 +379,8 @@ function renderGame() {
     return
   }
   const caught = a.mine.flagged || (a.both && a.theirs.flagged)
-  shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}). The verdict goes on-chain: any payout waits 14 days so it can be challenged.`
-    : `<b>Slipped past.</b> Small fakes can look natural (score ${a.mine.score.toFixed(1)}, limit ${a.mine.limit.toFixed(1)}). That's why it's not the only shield.`, 'Caught you')
+  shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (strangeness ${a.mine.score.toFixed(1)}; anything over ${a.mine.limit.toFixed(1)} gets flagged). This warning is recorded publicly, and any payout waits 14 days so it can be checked.`
+    : `<b>Slipped past.</b> Small fakes can look natural (strangeness ${a.mine.score.toFixed(1)}; the flag goes up over ${a.mine.limit.toFixed(1)}). That's why it's not the only shield.`, 'Caught you')
   shield('s2', a.agree ? (a.wouldPay ? 'pass' : '') : 'stop', !a.agree
     ? `<b>Blocked.</b> ${a.both ? 'Even faked, the two records' : `NASA says Ba's season was ${was(a.theirs.dry)}; you say ${was(a.mine.dry)}. They`} don't agree, so nothing pays.`
     : a.wouldPay ? `<b>Bypassed.</b> You faked both records so they agree on a ${kind((a.mine.dry + a.theirs.dry) / 2)}.`
@@ -504,7 +505,7 @@ const NS = FC.now.season // the season ending in April of this year
   $('nino-now').textContent = degC(now.months[last])
   $('nino-now-l').textContent = `${LONG[last]} ${now.year}`
   $('nino-then').textContent = degC(then.months[last])
-  document.querySelector('.nino .k').textContent = `Pacific Ocean warmth (Niño-3.4), ${LONG[last]}`
+  document.querySelector('.nino .k').textContent = `How much warmer than normal the Pacific is, ${LONG[last]}`
   document.querySelector('.nino .then span').textContent = `${LONG[last]} ${then.year}, before the 1998 drought`
   const x = (i) => 6 + (i / 11) * 288, y = (v) => 70 - ((v + 1) / 4) * 64
   const line = (m, n) => m.slice(0, n).map((v, i) => `${x(i)},${y(v)}`).join(' ')
@@ -514,7 +515,7 @@ const NS = FC.now.season // the season ending in April of this year
 // Countdown to the dates that matter (midnight in Fiji).
 const DATES = [
   ['Cover sales close, season starts', Date.UTC(NS - 1, 9, 31, 12), `1 November ${NS - 1}`],
-  ['Early check: 30% if severe', Date.UTC(NS, 0, 31, 12), `31 January ${NS}`],
+  ['Early check: pays 30% in a severe drought', Date.UTC(NS, 0, 31, 12), `31 January ${NS}`],
   ['Final check', Date.UTC(NS, 3, 30, 12), `30 April ${NS}`],
 ]
 function clock() {
@@ -532,14 +533,9 @@ setInterval(clock, 60_000)
   const quiet = FC.history.filter((h) => h.nino >= 1 && h.districts.every((d) => !d.paid)).map((h) => season(h.season))
   $('fc-chance').textContent = `${Math.round(chance * 100)}%`
   $('fc-base').textContent = `${Math.round(FC.base * 100)}%`
-  $('fc-text').innerHTML = `A small model trained on ${n} seasons (${season(FC.history[0].season)} to ${season(FC.history.at(-1).season)}) learned one thing: the warmer the Pacific in August and September, the likelier Fiji's cane districts are to be paid. ` +
-    `This year's reading (${degC(FC.now.nino)}) is beyond anything in its record, so it's treated as 1997-strength rather than guessed at. ` +
-    `It's a chance, not a promise: the ${quiet.join(' and ')} seasons had strong El Niños and brought no drought payouts. ` +
-    `Tested on seasons it never saw, it beats always guessing the average by ${Math.round(FC.skill.score * 100)}%: modest, and honest.`
+  $('fc-text').innerHTML = `We taught a simple computer model using ${n} past seasons. It learned that when the Pacific Ocean is warmer than usual in August and September (El Niño), droughts are much more likely. This year the ocean is warmer than in any of them. It's a chance, not a promise: in ${quiet.join(' and ')} the ocean was warm too, and no drought payout was needed.`
   $('fc-price').textContent = F(price * 1000)
-  $('fc-why').innerHTML = `One flat price (${F(P.flat * 1000)} a year) only works if everyone buys every year. If people buy only when El Niño is showing, a flat-priced pool pays out <b>${P.flatLossRatio}×</b> what it takes in and goes broke. ` +
-    `Priced by the forecast, those same buyers get back <b>${P.forecastLossRatio}×</b> what they pay: fair to them, safe for the pool. Sales close on 1 November, before the season's rain is known. ` +
-    `A price this high in an El Niño year is where government or donor premium support matters most.`
+  $('fc-why').innerHTML = `If the price never changed, people would only buy when a drought was coming, and the pool would pay out about F$${Math.round(P.flatLossRatio)} for every F$1 it took in. So the price rises in risky years and falls in calm ones. Sales close on 1 November, before anyone knows how much rain will fall.`
 }
 // Today's readings, ranked like a checkpoint. The saved copy shows straight away; today's download replaces it when it lands.
 let NOWDATA = null
@@ -575,7 +571,7 @@ function showNow(got, mode) {
       `<div class="nd-src"><span>Copernicus <b>${Math.round(r.era5.rain)} mm</b></span><span>NASA <b>${Math.round(r.power.rain)} mm</b></span>` +
       `<em class="${r.gap <= IDX.rules.maxGap ? 'ok' : 'no'}">${r.gap <= IDX.rules.maxGap ? 'Records agree' : 'Records disagree'}</em></div></div>` : '').join('')
   $('now-src').innerHTML = mode === 'live'
-    ? `<span class="live red"></span>Downloaded live from Copernicus ERA5 (via Open-Meteo) and NASA POWER, readings to ${dayName(upto)}. The newest days are preliminary and can still be revised.${started ? '' : ' From 1 November this switches to the season window the contract judges.'}`
+    ? `<span class="live red"></span>Downloaded live from Copernicus ERA5 (via Open-Meteo) and NASA POWER, readings to ${dayName(upto)}. The last few days may still be corrected by the agencies.${started ? '' : ' From 1 November this switches to the season window the contract judges.'}`
     : mode === 'saved' ? `Saved readings to ${dayName(upto)}. Checking Copernicus and NASA for newer ones…`
     : `Saved readings to ${dayName(upto)}: the archives didn't answer just now. Reload to try again.`
 }
@@ -615,18 +611,23 @@ function funders() {
   // The hardest year: where the pool runs lowest, which is what the starting capital has to cover.
   const hard = rows.reduce((a, r, i) => (r.cum < rows[a].cum ? i : a), 0), hx = x(hard), hy = y(capital + rows[hard].cum)
   const right = hard > rows.length * 0.6
-  const note = capital > 0 ? `${rows[hard].season}: the pool's hardest year, covered by ${millions(capital)} of starting capital` : 'The pool never needed starting capital'
+  const note = capital > 0 ? `${rows[hard].season}: the hardest year. The ${millions(capital)} set aside at the start covers it.` : 'The pool never needed money set aside'
   $('f-svg').innerHTML = grid + rows.map((r, i) => r.pay ? `<rect class="out" x="${x(i) - bw * 0.32}" y="${y(r.pay)}" width="${bw * 0.64}" height="${H - bot - y(r.pay)}"><title>${r.season}: paid ${millions(r.pay)}</title></rect>` : '').join('') +
     `<polygon class="pool-a" points="${x(0)},${H - bot} ${pool} ${x(rows.length - 1)},${H - bot}"/><polyline class="pool" points="${pool}"/>` +
     `<line class="axis" x1="20" x2="${W - 6}" y1="${H - bot}" y2="${H - bot}"/>` +
     rows.map((r, i) => (r.season % 5 === 0 || r.season === 1998) && r.season !== 2000 ? `<text x="${x(i)}" y="${H - 10}" class="${r.season === 1998 ? 'hl' : ''}">${r.season}</text>` : '').join('') +
     (capital > 0 ? `<line class="lead" x1="${hx}" x2="${hx}" y1="${hy - 8}" y2="${top + 34}"/><circle class="hard" cx="${hx}" cy="${hy}" r="6"/>` +
       `<text class="note" x="${hx + (right ? -10 : 10)}" y="${top + 40}" text-anchor="${right ? 'end' : 'start'}">${note}</text>` : '')
-  const ratio = totPay / totPrem, end = capital + cum
-  $('f-stats').innerHTML = `<div><b>${millions(worst.pay)}</b><span>paid in the worst season (${worst.season - 1}–${String(worst.season).slice(2)})</span></div>` +
-    `<div><b>${millions(capital)}</b><span>starting capital so the pool never runs dry</span></div>` +
-    `<div class="${end >= capital ? 'good' : 'bad'}"><b>${millions(end)}</b><span>in the pool after ${rows.length} seasons</span></div>` +
-    `<div class="${ratio <= 1 ? 'good' : 'bad'}"><b>${ratio.toFixed(2)}×</b><span>paid out per F$1 of premium</span></div>`
+  const ratio = totPay / totPrem, profit = totPrem - totPay
+  const back = ratio <= 1 ? `${Math.round(ratio * 100)} cents` : `F$${ratio.toFixed(2)}`
+  $('f-verdict').className = `f-verdict ${ratio <= 1 ? 'good' : 'bad'}`
+  $('f-verdict').innerHTML = ratio <= 1
+    ? `<b>✓ The pool works.</b> For every F$1 farmers pay, ${back} is paid back to them. The rest pays for running the scheme and the insurer's profit.${onlyElNino ? ' Even if people only buy in El Niño years, the forecast price keeps it safe.' : ''}`
+    : `<b>✗ This loses money.</b> For every F$1 farmers pay, the pool pays out ${back}.${fPrice === 'flat' && onlyElNino ? ' That\'s what happens with the same price every year: people only buy when a drought is coming. It\'s why our price follows the El Niño forecast.' : ''}`
+  $('f-stats').innerHTML = `<div><b>${millions(worst.pay)}</b><span>the most ever paid out in one season (${worst.season - 1}–${String(worst.season).slice(2)})</span></div>` +
+    `<div><b>${millions(capital)}</b><span>the insurer sets aside on day one, so it can always pay everyone, even in its worst year</span></div>` +
+    `<div class="${profit >= 0 ? 'good' : 'bad'}"><b>${profit >= 0 ? '+' : '−'}${millions(Math.abs(profit))}</b><span>${profit >= 0 ? 'profit' : 'loss'} after ${rows.length} seasons: what farmers paid, minus what they were paid</span></div>` +
+    `<div class="${ratio <= 1 ? 'good' : 'bad'}"><b>${back}</b><span>paid back to farmers for every F$1 they pay</span></div>`
 }
 $('f-price').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; fPrice = b.dataset.p; for (const x of $('f-price').children) x.classList.toggle('on', x === b); funders() }
 $('f-load').oninput = $('f-elnino').oninput = funders

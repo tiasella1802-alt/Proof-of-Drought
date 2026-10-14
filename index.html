@@ -60,9 +60,9 @@
           <dl class="ins-rows">
             <div><dt>Paid out this season</dt><dd id="in-paid">F$0</dd></div>
             <div><dt>Test farmers paid</dt><dd id="in-farmers">0 of 96</dd></div>
-            <div><dt>Districts settled</dt><dd id="in-settled">0 of 16</dd></div>
-            <div><dt>Records disagreed</dt><dd id="in-disagree">0</dd></div>
-            <div><dt>Held for review (AI flag)</dt><dd id="in-held">0</dd></div>
+            <div><dt>Districts checked</dt><dd id="in-settled">0 of 16</dd></div>
+            <div><dt>Satellite records disagreed</dt><dd id="in-disagree">0</dd></div>
+            <div><dt>On hold (AI flagged the data)</dt><dd id="in-held">0</dd></div>
           </dl>
           <div class="ins-scale"><span>At Fiji's scale: about 10,200 cane growers</span><b id="in-scale">F$0</b><small>paid out so far this season</small></div>
           <a class="ins-more" href="#funders">Will the pool survive 45 years? ↓</a>
@@ -139,8 +139,9 @@
       </div>
       <div class="game">
         <div class="ctl">
-          <label for="g-rain">Rain you report <b id="g-rain-v">100% of what fell</b></label>
+          <label for="g-rain">Rain you tell the contract fell <b id="g-rain-v">the true amount</b></label>
           <input type="range" id="g-rain" min="0" max="100" value="100" step="5" />
+          <p class="hint">Slide left to pretend less rain fell than really did. Less rain makes it look like a drought.</p>
           <label class="tog"><input type="checkbox" id="g-both" /><span>Also hack NASA's feed</span></label>
           <button class="btn hot" id="g-go">Claim the payout</button>
           <div class="result" id="g-result"></div>
@@ -178,7 +179,7 @@
           <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
           <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
           <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
-          <p class="fine">Above normal, January–September. Source: NOAA Climate Prediction Center (OISST, 1991–2020 normal). NOAA's 8 October update expects a strong to very strong El Niño through early 2027.</p>
+          <p class="fine">Degrees warmer than normal, January to September. Source: NOAA Climate Prediction Center, which expects a strong El Niño to last into early 2027.</p>
         </div>
         <div class="clock" id="now-clock"></div>
       </div>
@@ -194,11 +195,12 @@
         <p>About 10,200 cane growers with F$1,000 of cover each, every season since 1983, paid by the same rules and priced by the El Niño forecast made before each season began.</p>
       </div>
       <div class="f-ctl">
-        <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Priced by the El Niño forecast</button><button data-p="flat">One flat price</button></div>
-        <label class="f-load">Margin for costs and capital <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
-        <label class="tog"><input type="checkbox" id="f-elnino" /><span>Farmers only buy when El Niño is showing</span></label>
+        <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Price follows the El Niño forecast</button><button data-p="flat">Same price every year</button></div>
+        <label class="f-load">Extra for running costs and profit <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
+        <label class="tog"><input type="checkbox" id="f-elnino" /><span>What if farmers only buy in El Niño years?</span></label>
       </div>
       <div class="f-chart"><svg id="f-svg" viewBox="0 0 900 320" role="img" aria-label="Money in the pool and payouts, each season since 1983, in Fiji dollars"></svg><div class="f-key"><span><i class="pool"></i>Money in the pool</span><span><i class="out"></i>Paid out that season</span></div></div>
+      <p class="f-verdict" id="f-verdict"></p>
       <div class="f-stats" id="f-stats"></div>
       <ul class="audit" aria-label="Audit trail">
         <li><b>Every payout is a transaction</b> in the contract's public log</li>
