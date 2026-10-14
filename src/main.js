@@ -66,7 +66,7 @@ const SAT = {
   layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#071022' } }, { id: 's2', type: 'raster', source: 's2', paint: { 'raster-saturation': -0.15, 'raster-contrast': 0.08 } }],
 }
 // Keep the cane belt clear of the picker (left), the phone (right), the status (top) and the dock (bottom).
-const pad = () => (innerWidth > 980 ? { top: 150, bottom: 150, left: Math.min(540, innerWidth * 0.4), right: 360 } : 30)
+const pad = () => (innerWidth > 980 ? { top: 150, bottom: 150, left: Math.min(540, innerWidth * 0.4), right: 360 } : { top: 40, bottom: 50, left: 30, right: 50 })
 const BOUNDS = [[177.25, -18.3], [179.5, -16.3]]
 const map = new maplibregl.Map({ container: 'map', style: SAT, bounds: BOUNDS, fitBoundsOptions: { padding: pad() }, attributionControl: { compact: true }, cooperativeGestures: true })
 addEventListener('resize', () => map.fitBounds(BOUNDS, { padding: pad(), duration: 0 }))
@@ -105,7 +105,7 @@ function paint() {
     el.classList.toggle('paid', !!st?.paidD.has(k))
   })
   $('pl-months').innerHTML = MONTH_I.map((_, i) => `<li data-i="${i}" class="${i === 2 || i === 5 ? 'ck' : ''}${i < step ? ' done' : ''}${i === step ? ' now' : ''}">` +
-    `${monthName(i).split(' ')[0]}<small>${i === 2 ? 'early check' : i === 5 ? 'final check' : ''}</small></li>`).join('')
+    `${monthName(i).split(' ')[0]}<small>${i === 2 ? 'early<span class="wide"> check</span>' : i === 5 ? 'final<span class="wide"> check</span>' : ''}</small></li>`).join('')
   $('pl-progress').style.width = `${((step + 1) / 6) * 100}%`
   narrate(rows)
 }
@@ -405,9 +405,14 @@ $('g-go').onclick = async () => {
       r.className = 'result no'
       r.innerHTML = `<b>Payout held for 14 days: the AI flagged the data.</b> Both records agree on a drought, but the guard says they don't look like real Ba weather, and its verdict is on-chain. No money moves while anyone can challenge it.<span class="tx">Held in block #${res.block}</span>`
       await wait(1800)
+      const bothFlagged = v1 > 1000 && v2 > 1000
+      if (!bothFlagged) {
+        r.innerHTML += `<span class="step"><b>Only one guard flagged it,</b> so the insurer can't reject it alone (that stops an insurer and one oracle cancelling real payouts). It waits out the 14 days, but the seal still proves your data was faked.</span>`
+        return
+      }
       const rej = await gameChain.dc.write(K.insurer, 'reject', [season, 1, G.k])
       if (rej.events.some((e) => e.name === 'PayoutRejected'))
-        r.innerHTML += `<span class="step"><b>Day 3:</b> the insurer downloads both records from Copernicus and NASA. They don't match the seals you posted, so it rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
+        r.innerHTML += `<span class="step"><b>Day 3:</b> both guards flagged it, so the insurer may reject it: it downloads both records from Copernicus and NASA, they don't match the seals you posted, and it rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
     }
     else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> Your fake was subtle enough to get past the AI check too, so nothing was held. But the seal proves the data was faked: anyone who checks it can prove the fraud, forever.`
     else r.className = 'result no', r.innerHTML = `<b>Nothing paid.</b> Even with your fake, it wasn't a drought. ${a.tampered ? '' : 'Try moving the slider.'}`
@@ -502,12 +507,12 @@ setInterval(clock, 60_000)
 {
   const chance = FC.now.districts.reduce((a, d) => a + d.chance, 0) / D.length, price = FC.now.districts.reduce((a, d) => a + d.price, 0) / D.length
   const P = FC.pricing, n = FC.history.length
-  const quiet = FC.history.filter((h) => h.nino >= 1 && h.districts.every((d) => !d.paid)).map((h) => h.season - 1)
+  const quiet = FC.history.filter((h) => h.nino >= 1 && h.districts.every((d) => !d.paid)).map((h) => season(h.season))
   $('fc-chance').textContent = `${Math.round(chance * 100)}%`
   $('fc-base').textContent = `${Math.round(FC.base * 100)}%`
   $('fc-text').innerHTML = `A small model trained on ${n} seasons (${season(FC.history[0].season)} to ${season(FC.history.at(-1).season)}) learned one thing: the warmer the Pacific in August and September, the likelier Fiji's cane districts are to be paid. ` +
     `This year's reading (${degC(FC.now.nino)}) is beyond anything in its record, so it's treated as 1997-strength rather than guessed at. ` +
-    `It's a chance, not a promise: strong El Niños in ${quiet.join(' and ')} brought no drought payouts. ` +
+    `It's a chance, not a promise: the ${quiet.join(' and ')} seasons had strong El Niños and brought no drought payouts. ` +
     `Tested on seasons it never saw, it beats always guessing the average by ${Math.round(FC.skill.score * 100)}%: modest, and honest.`
   $('fc-price').textContent = F(price * 1000)
   $('fc-why').innerHTML = `One flat price (${F(P.flat * 1000)} a year) only works if everyone buys every year. If people buy only when El Niño is showing, a flat-priced pool pays out <b>${P.flatLossRatio}×</b> what it takes in and goes broke. ` +
@@ -534,10 +539,12 @@ async function track() {
   const upto = res.map((r, k) => r && got[k].era5[r.to - 1][0]).filter(Boolean).sort()[0]
   const dry = res.filter((r) => r && r.index <= 0.2).length
   const cap = (t) => t[0].toUpperCase() + t.slice(1)
+  // Before 1 November nothing can trigger yet, so don't use the trigger's words ("drought") for pre-season dryness.
+  const label = (x) => (!started && x <= 0.2 ? 'very dry' : kind(x))
   $('now-grid').innerHTML = `<p class="now-sum">${started ? `Season so far, 1 November to ${dayName(upto)}` : `Going into the season, 1 September to ${dayName(upto)}`}: ` +
     `<b>${dry} of ${D.length} districts</b> are drier than 80% of years in the 30-year record.</p>` +
     res.map((r, k) => r ? `<div class="nd"><div class="nd-h"><b>${D[k].name}</b><span>${D[k].island}</span></div>` +
-      `<div class="nd-v" style="--c:${colour(r.index)}">${cap(kind(r.index))}</div><p>${drierThan(r.index)}</p>` +
+      `<div class="nd-v" style="--c:${colour(r.index)}">${cap(label(r.index))}</div><p>${drierThan(r.index)}</p>` +
       `<div class="nd-bar"><i style="width:${Math.max(3, (1 - r.index) * 100)}%;background:${colour(r.index)}"></i></div>` +
       `<div class="nd-src"><span>Copernicus <b>${Math.round(r.era5.rain)} mm</b></span><span>NASA <b>${Math.round(r.power.rain)} mm</b></span>` +
       `<em class="${r.gap <= IDX.rules.maxGap ? 'ok' : 'no'}">${r.gap <= IDX.rules.maxGap ? 'Records agree' : 'Records disagree'}</em></div></div>` : '').join('')

@@ -5,7 +5,8 @@ pragma solidity ^0.8.24;
 /// @notice Holds an insurer's payout pool for cane farmers. Two independent oracles each post one data source's
 /// dryness reading for a district (Copernicus ERA5 and NASA POWER), with the SHA-256 of the exact daily data behind it.
 /// When both have reported, this contract, not the insurer, applies the public rules and pays every farmer in the
-/// district at once. No single oracle can trigger a payout, and the insurer cannot withhold one the data says is due.
+/// district at once. No single oracle can trigger a payout, and the insurer cannot withhold one that both sources' data
+/// and both data guards say is due.
 ///
 /// Dryness is a percentile in tenths of a percent (0 = driest season in the 1991–2020 baseline, 1000 = wettest).
 /// Checkpoints per season: EARLY (end of January) and FINAL (end of April). Rules, same as scripts/rules.mjs:
@@ -15,8 +16,10 @@ pragma solidity ^0.8.24;
 ///
 /// Each oracle also posts its data guard's verdict: the AI anomaly score as a share of the flag threshold (per mille,
 /// above 1000 = the data doesn't look like real weather). If either reading is flagged, a payout that is due is held
-/// for CHALLENGE_PERIOD. During it, the insurer can reject it (for example after showing the data doesn't match the
-/// public archives); after it, anyone can release it. Unflagged payouts are never delayed.
+/// for CHALLENGE_PERIOD; after it, anyone can release it. Unflagged payouts are never delayed.
+/// The insurer can reject a held payout during the challenge period only if BOTH guards flagged it. So one oracle
+/// (colluding with the insurer, or with stolen keys) can delay a real payout by at most CHALLENGE_PERIOD, never cancel it.
+/// Cancelling a real payout would take both independent oracles and the insurer, all on the public record.
 contract DroughtCover {
     enum Stage { EARLY, FINAL }
 
@@ -32,7 +35,7 @@ contract DroughtCover {
 
     struct Policy { address payable farmer; uint8 district; uint128 cover; }
     struct Report { uint16 dryness; uint16 guard; bytes32 dataHash; bool posted; }
-    struct Hold { uint16 share; uint64 releaseAt; }
+    struct Hold { uint16 share; uint64 releaseAt; bool bothFlagged; }
 
     address public immutable insurer;
     address[2] public oracles; // [0] Copernicus ERA5 / ERA5-Land, [1] NASA POWER
@@ -66,6 +69,7 @@ contract DroughtCover {
     error NothingHeld();
     error ChallengeOpen(uint64 releaseAt);
     error ChallengeClosed();
+    error NeedsBothFlags();
 
     constructor(address era5Oracle, address powerOracle) {
         insurer = msg.sender;
@@ -108,7 +112,7 @@ contract DroughtCover {
         uint16 share = shareDue(stage, index);
         if (share > 0 && (a.guard > FLAG_AT || b.guard > FLAG_AT)) {
             uint64 releaseAt = uint64(block.timestamp) + CHALLENGE_PERIOD;
-            holds[season][stage][district] = Hold(share, releaseAt);
+            holds[season][stage][district] = Hold(share, releaseAt, a.guard > FLAG_AT && b.guard > FLAG_AT);
             emit PayoutHeld(season, stage, district, share, a.guard, b.guard, releaseAt);
             emit Settled(season, stage, district, index, gap, share, 0, 0);
             return;
@@ -127,12 +131,14 @@ contract DroughtCover {
         _pay(season, district, h.share);
     }
 
-    /// @notice During the challenge period, the insurer can reject a flagged payout. It's logged for everyone to see.
+    /// @notice During the challenge period, the insurer can reject a payout that both data guards flagged.
+    /// It's logged for everyone to see. A payout only one guard flagged can be delayed, not rejected.
     function reject(uint16 season, Stage stage, uint8 district) external {
         if (msg.sender != insurer) revert NotInsurer();
         Hold memory h = holds[season][stage][district];
         if (h.share == 0) revert NothingHeld();
         if (block.timestamp >= h.releaseAt) revert ChallengeClosed();
+        if (!h.bothFlagged) revert NeedsBothFlags();
         delete holds[season][stage][district];
         emit PayoutRejected(season, stage, district);
     }

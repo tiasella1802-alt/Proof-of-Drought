@@ -30,7 +30,7 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 | Final, end of April | District in its driest 10% | 100% of cover, less anything paid early |
 | Final, end of April | District in its driest 20% | 50% of cover |
 | Any | The two sources differ by more than 25 percentile points | Nothing; the disagreement is logged on-chain |
-| Any | Either source's data guard flags its reading, and a payout is due | Payout held for 14 days. The insurer can reject it during that time (logged on-chain); after it, anyone can release it |
+| Any | Either source's data guard flags its reading, and a payout is due | Payout held for 14 days; after it, anyone can release it. If both guards flagged it, the insurer can reject it during the 14 days (logged on-chain) |
 
 ## Results
 
@@ -65,16 +65,20 @@ Trained on 1991–2020; features: rainfall-vs-soil percentile gap, dryness vs th
 | ERA5, early check | 1.1% | 48% | 66% | 85% | 73% |
 | NASA POWER, early check | 1.1% | 57% | 72% | 93% | 73% |
 
-Each oracle posts the guard's verdict on-chain with its reading (the score as a share of the threshold). If either is flagged and a payout is due, the contract holds it for 14 days: the insurer can reject it during that time, for example after showing the data doesn't match the public archives, and anyone can release it after. Payouts on unflagged data are never delayed. **In 45 years of real data, the guard flagged 16 readings and none of them was in a season that paid, so it would never have delayed a real payout.**
+Each oracle posts the guard's verdict on-chain with its reading (the score as a share of the threshold). If either is flagged and a payout is due, the contract holds it for 14 days, and anyone can release it after. The insurer can reject it during that time only if **both** guards flagged it (for example after showing the data doesn't match the public archives). Payouts on unflagged data are never delayed. **In 45 years of real data, the guard flagged 16 readings and none of them was in a season that paid, so it would never have delayed a real payout.**
 
 The guard is one of three locks: the contract also requires two independent agencies' data to agree, and every reading's fingerprint can be checked against the public archives by anyone. In the website's "fake a drought" game, hacking both feeds hard enough to trigger a payout gets the payout held and then rejected. A fake subtle enough to slip past the guard would be paid, but it stays provably different from the archives, permanently. The guard runs inside the oracles, so it protects against faked *data*; stolen oracle *keys* could post a false verdict, which is what the public seal is for.
+
+**Threat model for the hold.** Who could stop a real payout?
+- One oracle alone, or the insurer plus one colluding oracle posting a false flag: they can **delay** it by 14 days, not cancel it, because rejection needs both guards' flags.
+- Both oracles plus the insurer: they could cancel it, in public, with the real data still in the archives to prove it. A real scheme would make the oracles independent organisations (or a multisig) and could hand rejection to an independent arbiter.
 
 ### Forecast: the chance a district pays this season
 
 One input, known by early October, a month before cover is sold: the Niño-3.4 sea-surface temperature anomaly averaged over August and September (NOAA CPC). Logistic regression over every district and season since 1983, tested by leaving one whole season out at a time.
 
 - In an ordinary season, 17% of districts are paid. For 2026–27 the model says **61%**.
-- Skill against always guessing the average: 5.5% better (Brier score, on seasons it never saw). Modest, and reported as such: strong El Niños in 1987 and 2023 brought no drought payouts.
+- Skill against always guessing the average: 5.5% better (Brier score, on seasons it never saw). Modest, and reported as such: the 1987–88 and 2023–24 seasons had strong El Niños and brought no drought payouts.
 - This year's El Niño is stronger than any in the training seasons, so it is treated as being as strong as the strongest one seen (1997) rather than extrapolated.
 - We tried adding each district's September soil moisture. It barely changed the skill and its weight pointed the wrong way, so it was left out.
 
@@ -95,7 +99,7 @@ Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread ev
 
 ### Contract
 
-`npm test` runs 17 checks against a fresh deployment: only the insurer issues policies, only the two oracles report, one oracle alone can't trigger a payout, early + final never exceeds 100%, disagreeing sources pay nothing, the pool must cover every payout before anyone is paid, a wallet that refuses payment can't block its district (its money waits for it), a flagged payout is held and can only be rejected during its challenge period and released after it, flagged data with nothing due isn't held, and the on-chain rule matches `scripts/rules.mjs`.
+`npm test` runs 17 checks against a fresh deployment: only the insurer issues policies, only the two oracles report, one oracle alone can't trigger a payout, early + final never exceeds 100%, disagreeing sources pay nothing, the pool must cover every payout before anyone is paid, a wallet that refuses payment can't block its district (its money waits for it), a flagged payout is held, can be rejected only during its challenge period and only if both guards flagged it, and is released after it, flagged data with nothing due isn't held, and the on-chain rule matches `scripts/rules.mjs`.
 
 ## What's real and what's simulated
 

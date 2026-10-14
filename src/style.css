@@ -448,3 +448,11 @@ input[type=range] { width: 100%; accent-color: var(--hot); cursor: pointer; }
   .now-grid, .f-stats, .audit { grid-template-columns: 1fr; }
   .nino-vs b { font-size: 36px; }
 }
+
+/* phones: the west-coast districts sit a few pixels apart, so only the chosen farm is labelled (the chips name them all) */
+@media (max-width: 980px) {
+  .dm span { display: none; }
+  .dm.sel span { display: block; }
+  .months li small { font-size: 10px; }
+  .months li small .wide { display: none; }
+}

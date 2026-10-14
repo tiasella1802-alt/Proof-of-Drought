@@ -96,7 +96,7 @@ await check('a wallet that refuses payment cannot block the district; its money 
   if ((await bal(normal)) !== eth(1)) throw new Error('normal farmer not paid')
   if (!events(rc, 'Held').length || (await c.owed(R)) !== eth(1)) throw new Error('refused payment not held')
 })
-await check('flagged data: a payout that is due is held, not paid', async () => {
+await check('flagged by one guard: a payout is held, cannot be rejected, and is paid after the challenge period', async () => {
   const f = ethers.Wallet.createRandom().address
   await (await c.issue(f, 5, eth(1))).wait()
   await (await as(era5).report(1998, FINAL, 5, 20, FLAGGED, h('j'))).wait()
@@ -105,6 +105,8 @@ await check('flagged data: a payout that is due is held, not paid', async () => 
   if ((await bal(f)) !== 0n) throw new Error('paid while flagged')
   await reverts(c.release(1998, FINAL, 5), 'ChallengeOpen')
   await reverts(as(stranger).reject(1998, FINAL, 5), 'NotInsurer')
+  // one flag (one oracle, perhaps colluding with the insurer) can delay a payout but never cancel it
+  await reverts(c.reject(1998, FINAL, 5), 'NeedsBothFlags')
   // the challenge period passes with no challenge: anyone can release it
   await provider.send('evm_increaseTime', [14 * 86400]); await provider.send('evm_mine', [])
   await reverts(c.reject(1998, FINAL, 5), 'ChallengeClosed')
@@ -112,7 +114,7 @@ await check('flagged data: a payout that is due is held, not paid', async () => 
   if ((await bal(f)) !== eth(1)) throw new Error('not paid after release')
   await reverts(c.release(1998, FINAL, 5), 'NothingHeld')
 })
-await check('flagged data: the insurer can reject during the challenge period', async () => {
+await check('flagged by both guards: the insurer can reject during the challenge period', async () => {
   const f = ethers.Wallet.createRandom().address
   await (await c.issue(f, 7, eth(1))).wait()
   await (await as(era5).report(2011, FINAL, 7, 20, FLAGGED, h('l'))).wait()

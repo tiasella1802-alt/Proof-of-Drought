@@ -88,7 +88,7 @@ const history = seasons.map((y) => ({ season: y, nino: +nino(y).toFixed(2),
 const series = (yr) => Array.from({ length: 12 }, (_, i) => N34[`${yr}-${String(i + 1).padStart(2, '0')}`] ?? null)
 const compare = { then: { year: 1997, months: series(1997) }, now: { year: next - 1, months: series(next - 1) } }
 
-writeFileSync('data/forecast.json', JSON.stringify({ compare, built: new Date().toISOString(), inputs: ['Niño-3.4 anomaly, Aug–Sep (NOAA CPC)', 'September soil moisture percentile (ERA5-Land + NASA POWER)'],
+writeFileSync('data/forecast.json', JSON.stringify({ compare, built: new Date().toISOString(), inputs: ['Niño-3.4 anomaly, Aug–Sep (NOAA CPC)'], context: 'now.districts[].soil is September soil moisture (percentile, both sources), shown for context only: the model does not use it',
   weights: w.slice(0, 2).map((v) => +v.toFixed(4)), cap: +w[2].toFixed(2), base: +base.toFixed(3), skill: { brier: +brier.toFixed(4), brierClimatology: +brierClim.toFixed(4), score: +(1 - brier / brierClim).toFixed(3) },
   pricing, now, history }))
 
