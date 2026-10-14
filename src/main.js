@@ -179,10 +179,10 @@ for (const b of document.querySelectorAll('.views button')) b.onclick = () => {
 function cashPop(k, amount) {
   const el = markers[k]?.getElement()
   if (!el) return
+  for (const t of document.querySelectorAll('.dm .cash')) t.remove() // one tag at a time: the districts sit close together
   const tag = document.createElement('b')
   tag.className = 'cash'
   tag.textContent = `+${F(amount)}`
-  tag.style.marginBottom = `${(k % 3) * 20}px` // the west-coast districts sit close together: stagger their tags
   el.append(tag)
   setTimeout(() => tag.remove(), 2700)
 }
@@ -249,7 +249,7 @@ async function checkpoint(stage, my) {
     }
     tally()
     paint()
-    await wait(120)
+    await wait(paid.length ? 450 : 120) // let each payout's tag be seen before the next district
   }
   st.checking = false
   paint() // every district settled: now say what happened at your farm
@@ -264,10 +264,11 @@ async function advance() {
   if (step === 5) await checkpoint('final', my)
   return my === run
 }
+const goLabel = () => (farm === BA && year === 1998 ? 'Watch the 1998 drought' : `Play ${D[farm].name}, ${season(year)}`)
 function setPlay(on) {
   $('pl-play').innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'
   $('pl-play').setAttribute('aria-label', on ? 'Pause' : 'Play')
-  $('go').querySelector('span').textContent = on ? 'Playing…' : step >= 5 ? 'Play it again' : 'Play my season'
+  $('go').querySelector('span').textContent = on ? 'Playing…' : step >= 5 ? 'Play it again' : goLabel()
   $('go').classList.toggle('pulse', !on && step < 0)
 }
 async function play() {
@@ -297,11 +298,14 @@ $('pl-rec').onclick = () => {
   el.hidden = !show
   $('pl-rec').textContent = show ? 'Hide record' : 'On-chain record'
 }
+$('try-other').onclick = () => {
+  const open = $('try').hidden
+  $('try').hidden = !open
+  $('try-other').setAttribute('aria-expanded', open)
+  $('try-other').textContent = open ? 'Hide the picker' : 'Try another farm or year'
+}
 drawStrip()
 load(year)
-// If nobody has picked anything after a few seconds, play the 1998 drought at Ba to show what happens
-// (not for people who prefer reduced motion).
-if (!matchMedia('(prefers-reduced-motion: reduce)').matches) (async () => { while (!st) await wait(150); await wait(3500); if (!touched && step < 0 && !playing) play() })()
 // The top bar turns solid once you scroll past the stage.
 const topBar = document.querySelector('.top')
 const solid = () => topBar.classList.toggle('solid', scrollY > $('stage').offsetHeight - 140)
@@ -519,21 +523,25 @@ setInterval(clock, 60_000)
     `Priced by the forecast, those same buyers get back <b>${P.forecastLossRatio}×</b> what they pay: fair to them, safe for the pool. Sales close on 1 November, before the season's rain is known. ` +
     `A price this high in an El Niño year is where government or donor premium support matters most.`
 }
-// Today's readings: downloaded live from both archives, ranked like a checkpoint. Loaded when the section comes near.
+// Today's readings, ranked like a checkpoint. The saved copy shows straight away; today's download replaces it when it lands.
 let NOWDATA = null
 async function track() {
   NOWDATA ??= await get('now.json')
+  const saved = D.map((d) => ({ era5: NOWDATA.districts[d.key].era5.snapshot, power: NOWDATA.districts[d.key].power.snapshot }))
+  showNow(saved, 'saved')
   const from = `${NS - 1}-09-01`, to = [fijiDay(Date.now()), `${NS}-04-30`].sort()[0]
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20_000)
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 25_000)
   const clean = (rows) => rows.filter(([t]) => t >= from && t <= to && !t.endsWith('-02-29'))
-  let live = true
-  const got = await Promise.all(D.map(async (d) => {
-    try {
+  try {
+    const got = await Promise.all(D.map(async (d) => {
       const [era5, power] = await Promise.all(['era5', 'power'].map((s) => fetchRows(s, d, from, to, ctl.signal)))
       return { era5: clean(era5), power: clean(power) }
-    } catch { live = false; return { era5: NOWDATA.districts[d.key].era5.snapshot, power: NOWDATA.districts[d.key].power.snapshot } }
-  }))
+    }))
+    showNow(got, 'live')
+  } catch { showNow(saved, 'offline') }
   clearTimeout(timer)
+}
+function showNow(got, mode) {
   const started = got.every((g) => g.era5.length > SEASON_START && g.power.length > SEASON_START)
   const res = got.map((g, k) => trackDistrict(g, NOWDATA.districts[KEYS[k]], started ? SEASON_START : 0))
   const upto = res.map((r, k) => r && got[k].era5[r.to - 1][0]).filter(Boolean).sort()[0]
@@ -548,15 +556,13 @@ async function track() {
       `<div class="nd-bar"><i style="width:${Math.max(3, (1 - r.index) * 100)}%;background:${colour(r.index)}"></i></div>` +
       `<div class="nd-src"><span>Copernicus <b>${Math.round(r.era5.rain)} mm</b></span><span>NASA <b>${Math.round(r.power.rain)} mm</b></span>` +
       `<em class="${r.gap <= IDX.rules.maxGap ? 'ok' : 'no'}">${r.gap <= IDX.rules.maxGap ? 'Records agree' : 'Records disagree'}</em></div></div>` : '').join('')
-  $('now-src').innerHTML = live
-    ? `<span class="live red"></span>Downloaded live just now from Copernicus ERA5 (via Open-Meteo) and NASA POWER, readings to ${dayName(upto)}. The newest days are preliminary and can still be revised. Ranked against 1991–2020, exactly as the contract ranks a checkpoint.${started ? '' : ' From 1 November this switches to the season window the contract judges.'}`
-    : `Couldn't reach the archives just now, so this is the copy saved on ${dayName(NOWDATA.lastDay)}. Reload to try again.`
+  $('now-src').innerHTML = mode === 'live'
+    ? `<span class="live red"></span>Downloaded live from Copernicus ERA5 (via Open-Meteo) and NASA POWER, readings to ${dayName(upto)}. The newest days are preliminary and can still be revised.${started ? '' : ' From 1 November this switches to the season window the contract judges.'}`
+    : mode === 'saved' ? `Saved readings to ${dayName(upto)}. Checking Copernicus and NASA for newer ones…`
+    : `Saved readings to ${dayName(upto)}: the archives didn't answer just now. Reload to try again.`
 }
-new IntersectionObserver((e, o) => {
-  if (!e.some((x) => x.isIntersecting)) return
-  o.disconnect()
-  track().catch((err) => { $('now-grid').innerHTML = `<p class="now-wait">Couldn't load today's readings: ${err.message}</p>` })
-}, { rootMargin: '800px' }).observe($('now'))
+// Start soon after the page loads (not on scroll), so the cards are filled long before anyone reaches them.
+setTimeout(() => track().catch(() => {}), 1200)
 
 // ---------- 6. 1998 at Fiji's real scale ----------
 {
@@ -582,16 +588,25 @@ function funders() {
   const capital = -low, worst = rows.reduce((a, r) => (r.pay > a.pay ? r : a))
   const totPrem = rows.reduce((a, r) => a + r.prem, 0), totPay = rows.reduce((a, r) => a + r.pay, 0)
   // Chart: the pool (starting with just enough capital never to run dry) and each season's payouts.
-  const W = 900, H = 300, top = 16, bot = 30, max = Math.max(...rows.map((r) => capital + r.cum), ...rows.map((r) => r.pay), 1)
-  const bw = (W - 40) / rows.length, x = (i) => 30 + i * bw + bw / 2, y = (v) => H - bot - (v / max) * (H - top - bot)
+  const W = 900, H = 320, top = 16, bot = 30, left = 78, raw = Math.max(...rows.map((r) => capital + r.cum), ...rows.map((r) => r.pay), 1)
+  const p10 = 10 ** Math.floor(Math.log10(raw / 4)), tick = [1, 2, 2.5, 5, 10].map((m) => m * p10).find((t) => raw / t <= 4.5), max = Math.ceil(raw / tick) * tick
+  const bw = (W - left - 10) / rows.length, x = (i) => left + i * bw + bw / 2, y = (v) => H - bot - (v / max) * (H - top - bot)
   const pool = rows.map((r, i) => `${x(i)},${y(capital + r.cum)}`).join(' ')
-  $('f-svg').innerHTML = rows.map((r, i) => r.pay ? `<rect class="out" x="${x(i) - bw * 0.32}" y="${y(r.pay)}" width="${bw * 0.64}" height="${H - bot - y(r.pay)}"><title>${r.season}: paid ${millions(r.pay)}</title></rect>` : '').join('') +
+  const grid = Array.from({ length: Math.round(max / tick) + 1 }, (_, k) => k * tick)
+    .map((v) => `<line class="grid" x1="${left - 4}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}"/><text class="yl" x="${left - 10}" y="${y(v) + 4}">F${+(v / 1e6).toFixed(1)}M</text>`).join('')
+  // The hardest year: where the pool runs lowest, which is what the starting capital has to cover.
+  const hard = rows.reduce((a, r, i) => (r.cum < rows[a].cum ? i : a), 0), hx = x(hard), hy = y(capital + rows[hard].cum)
+  const right = hard > rows.length * 0.6
+  const note = capital > 0 ? `${rows[hard].season}: the pool's hardest year, covered by ${millions(capital)} of starting capital` : 'The pool never needed starting capital'
+  $('f-svg').innerHTML = grid + rows.map((r, i) => r.pay ? `<rect class="out" x="${x(i) - bw * 0.32}" y="${y(r.pay)}" width="${bw * 0.64}" height="${H - bot - y(r.pay)}"><title>${r.season}: paid ${millions(r.pay)}</title></rect>` : '').join('') +
     `<polygon class="pool-a" points="${x(0)},${H - bot} ${pool} ${x(rows.length - 1)},${H - bot}"/><polyline class="pool" points="${pool}"/>` +
     `<line class="axis" x1="20" x2="${W - 6}" y1="${H - bot}" y2="${H - bot}"/>` +
-    rows.map((r, i) => (r.season % 5 === 0 || r.season === 1998) && r.season !== 2000 ? `<text x="${x(i)}" y="${H - 10}" class="${r.season === 1998 ? 'hl' : ''}">${r.season}</text>` : '').join('')
+    rows.map((r, i) => (r.season % 5 === 0 || r.season === 1998) && r.season !== 2000 ? `<text x="${x(i)}" y="${H - 10}" class="${r.season === 1998 ? 'hl' : ''}">${r.season}</text>` : '').join('') +
+    (capital > 0 ? `<line class="lead" x1="${hx}" x2="${hx}" y1="${hy - 8}" y2="${top + 34}"/><circle class="hard" cx="${hx}" cy="${hy}" r="6"/>` +
+      `<text class="note" x="${hx + (right ? -10 : 10)}" y="${top + 40}" text-anchor="${right ? 'end' : 'start'}">${note}</text>` : '')
   const ratio = totPay / totPrem, end = capital + cum
-  $('f-stats').innerHTML = `<div><b>${millions(worst.pay)}</b><span>worst season (${worst.season - 1}–${String(worst.season).slice(2)})</span></div>` +
-    `<div><b>${millions(capital)}</b><span>capital needed up front so the pool never runs dry</span></div>` +
+  $('f-stats').innerHTML = `<div><b>${millions(worst.pay)}</b><span>paid in the worst season (${worst.season - 1}–${String(worst.season).slice(2)})</span></div>` +
+    `<div><b>${millions(capital)}</b><span>starting capital so the pool never runs dry</span></div>` +
     `<div class="${end >= capital ? 'good' : 'bad'}"><b>${millions(end)}</b><span>in the pool after ${rows.length} seasons</span></div>` +
     `<div class="${ratio <= 1 ? 'good' : 'bad'}"><b>${ratio.toFixed(2)}×</b><span>paid out per F$1 of premium</span></div>`
 }

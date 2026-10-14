@@ -14,10 +14,10 @@
     <a class="brand" href="#"><span class="logo" aria-hidden="true"><i></i></span>Proof of Drought</a>
     <a class="banner" href="#now"><span class="live red"></span><b>Live</b><span class="long">A 1998-strength El Niño is under way. See what the contract sees today</span><span class="short">El Niño 2026–27: see today's readings</span> →</a>
     <nav>
-      <a href="#now">Right now</a>
       <a href="#record">Track record</a>
-      <a href="#funders">For insurers</a>
       <a href="#cheat">Can it be cheated?</a>
+      <a href="#now">Right now</a>
+      <a href="#funders">For insurers</a>
       <a href="#check">Check the data</a>
     </nav>
   </header>
@@ -31,20 +31,23 @@
       <p class="chip"><span class="live"></span>For Fiji's sugarcane farmers</p>
       <h1>Drought insurance that <em>pays itself.</em></h1>
       <p class="lede">Satellites check the rain. If it fails, every insured farmer is paid automatically, straight to their phone. No claim forms, no waiting.</p>
-      <div class="try">
-        <p class="try-h">Try it: you're a cane farmer in Fiji</p>
+      <div class="cta1">
+        <button class="btn hot go pulse" id="go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Watch the 1998 drought</span></button>
+        <button class="lnk" id="try-other" aria-expanded="false" aria-controls="try">Try another farm or year</button>
+      </div>
+      <div class="try" id="try" hidden>
+        <p class="try-h">You're a cane farmer in Fiji</p>
         <div class="q"><span class="n">1</span><b>Where's your farm?</b></div>
         <div class="farms" id="farms"></div>
         <div class="q"><span class="n">2</span><b>Pick a season</b><em id="yr-lab">1997–98</em></div>
         <div class="strip" id="strip" role="listbox" aria-label="Season"></div>
         <div class="strip-ends"><span>1982</span><span>taller &amp; redder = drier</span><span>2026</span></div>
-        <button class="btn hot go" id="go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Play my season</span></button>
       </div>
     </div>
 
     <div class="status" id="status" aria-live="polite">
-      <span class="s-month" id="pl-month">Pick a farm and a season</span>
-      <span class="s-note" id="pl-note">then watch what the contract decides</span>
+      <span class="s-month" id="pl-month">Ba, 1997–98</span>
+      <span class="s-note" id="pl-note">Press play to watch the season, month by month</span>
     </div>
 
     <div class="phone" aria-label="Your phone">
@@ -56,7 +59,7 @@
           <div class="ins-big"><span>In the pool</span><b id="in-pool">F$0</b></div>
           <dl class="ins-rows">
             <div><dt>Paid out this season</dt><dd id="in-paid">F$0</dd></div>
-            <div><dt>Farmers paid</dt><dd id="in-farmers">0 of 96</dd></div>
+            <div><dt>Test farmers paid</dt><dd id="in-farmers">0 of 96</dd></div>
             <div><dt>Districts settled</dt><dd id="in-settled">0 of 16</dd></div>
             <div><dt>Records disagreed</dt><dd id="in-disagree">0</dd></div>
             <div><dt>Held for review (AI flag)</dt><dd id="in-held">0</dd></div>
@@ -79,46 +82,15 @@
         <div class="legend"><span><i class="w"></i>Wet</span><span><i class="n"></i>Normal</span><span><i class="d"></i>Dry</span><span><i class="s"></i>Severe drought</span><span><i class="p"></i>Paid</span></div>
       </div>
       <div class="count"><span>Paid to you</span><b id="pl-you">F$0</b></div>
-      <div class="count all"><span>To all 96 farmers</span><b id="pl-paid">F$0</b><button class="lnk" id="pl-rec">On-chain record</button></div>
+      <div class="count all"><span>To all 96 test farmers</span><b id="pl-paid">F$0</b><button class="lnk" id="pl-rec">On-chain record</button></div>
     </div>
     <ol class="record" id="record-log" hidden></ol>
   </section>
 
   <main>
-    <!-- Right now: the 2026–27 season, live -->
-    <section class="now-sec" id="now">
-      <div class="head">
-        <p class="eyebrow"><span class="live red"></span>Right now · the 2026–27 season</p>
-        <h2>A 1998-strength El Niño is under way. Here's what the contract sees today.</h2>
-        <p>The last time the Pacific looked like this, Fiji's cane belt went eleven months without enough rain. This page downloads the latest Copernicus and NASA readings for every cane district as you read it, and ranks them exactly as the contract will.</p>
-      </div>
-      <div class="now-top">
-        <div class="nino">
-          <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
-          <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
-          <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
-          <p class="fine">Above normal, January–September. Source: NOAA Climate Prediction Center (OISST, 1991–2020 normal). NOAA's 8 October update expects a strong to very strong El Niño through early 2027.</p>
-        </div>
-        <div class="clock" id="now-clock"></div>
-      </div>
-      <div class="now-grid" id="now-grid"><p class="now-wait">Downloading today's readings from Copernicus and NASA…</p></div>
-      <p class="now-src" id="now-src"></p>
-      <div class="ai-row">
-        <div class="ai-card">
-          <p class="k">AI forecast · chance a district pays this season</p>
-          <div class="ai-big"><b id="fc-chance">61%</b><span>In an ordinary year: <b id="fc-base">17%</b></span></div>
-          <p id="fc-text"></p>
-        </div>
-        <div class="ai-card price">
-          <p class="k">Price that can't be gamed</p>
-          <div class="ai-big"><b id="fc-price">F$380</b><span>this season, per F$1,000 of cover, before costs</span></div>
-          <p id="fc-why"></p>
-        </div>
-      </div>
-    </section>
-
     <!-- Then vs now -->
     <section class="contrast">
+      <div class="big-line"><b>8 months earlier.</b><p>That's how much sooner Fiji's cane farmers would have been paid in 1998: January, against a disaster declared in September.</p></div>
       <div class="c-row">
         <div class="c-side then">
           <p class="tag">What actually happened</p>
@@ -134,7 +106,6 @@
           <ul>
             <li><b>Jan 1998</b><span>F$300 per farmer in 7 of 8 districts, in time to save stock and replant</span></li>
             <li><b>Apr 1998</b><span>The rest: F$1,000 per farmer in every cane district</span></li>
-            <li><b>8 months</b><span>before the disaster was declared</span></li>
           </ul>
         </div>
       </div>
@@ -159,28 +130,6 @@
       </div>
     </section>
 
-    <!-- Insurers and funders -->
-    <section class="funders" id="funders">
-      <div class="head">
-        <p class="eyebrow">For insurers and funders</p>
-        <h2>Does the pool survive? 45 years at Fiji's scale.</h2>
-        <p>About 10,200 cane growers with F$1,000 of cover each, every season since 1983, paid by the same rules and priced by the El Niño forecast made before each season began.</p>
-      </div>
-      <div class="f-ctl">
-        <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Priced by the El Niño forecast</button><button data-p="flat">One flat price</button></div>
-        <label class="f-load">Margin for costs and capital <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
-        <label class="tog"><input type="checkbox" id="f-elnino" /><span>Farmers only buy when El Niño is showing</span></label>
-      </div>
-      <div class="f-chart"><svg id="f-svg" viewBox="0 0 900 300" preserveAspectRatio="none" role="img" aria-label="Pool balance by season"></svg><div class="f-key"><span><i class="pool"></i>Money in the pool</span><span><i class="out"></i>Paid out that season</span></div></div>
-      <div class="f-stats" id="f-stats"></div>
-      <div class="audit">
-        <div><b>Every payout is a transaction</b><p>Who was paid, how much and why, in the contract's public log. Open "On-chain record" in the player above.</p></div>
-        <div><b>Every reading is sealed</b><p>A SHA-256 fingerprint of the raw daily data, checkable against Copernicus and NASA by anyone. <a href="#check">Try it</a>.</p></div>
-        <div><b>Suspicious data waits</b><p>If the AI guard flags a reading, the payout is held for 14 days. The insurer can reject it only if both independent guards flagged it. In 45 years of real data, it never delayed a real payout.</p></div>
-        <div><b>Every rule is tested</b><p>17 automatic checks on the contract, from "one source alone can't trigger a payout" to "the pool must cover everyone before anyone is paid".</p></div>
-      </div>
-    </section>
-
     <!-- Cheat -->
     <section class="cheat" id="cheat">
       <div class="head">
@@ -202,6 +151,61 @@
           <div class="shield" id="s3"><i>3</i><h3>Public seal</h3><p></p></div>
         </div>
       </div>
+    </section>
+
+    <!-- Right now: the 2026–27 season, live -->
+    <section class="now-sec" id="now">
+      <div class="head">
+        <p class="eyebrow"><span class="live red"></span>Right now · the 2026–27 season</p>
+        <h2>A 1998-strength El Niño is under way. Here's what the contract sees today.</h2>
+        <p>The last time the Pacific looked like this, Fiji's cane belt went eleven months without enough rain. These are today's Copernicus and NASA readings, ranked exactly as the contract will rank them.</p>
+      </div>
+      <div class="ai-row">
+        <div class="ai-card">
+          <p class="k">AI forecast for this season</p>
+          <div class="ai-big"><b id="fc-chance">61%</b></div>
+          <p class="one">chance a cane district gets a drought payout this season, against <b id="fc-base">17%</b> in a normal year.</p>
+          <details><summary>How we know</summary><p id="fc-text"></p></details>
+        </div>
+        <div class="ai-card price">
+          <p class="k">The price</p>
+          <p class="one"><b id="fc-price">F$380</b> per F$1,000 of cover: priced by the forecast, so nobody can game it by buying only in El Niño years.</p>
+          <details><summary>How we know</summary><p id="fc-why"></p></details>
+        </div>
+      </div>
+      <div class="now-top">
+        <div class="nino">
+          <p class="k">Pacific Ocean warmth (Niño-3.4), September</p>
+          <div class="nino-vs"><div><b id="nino-now">+2.8°C</b><span id="nino-now-l">2026</span></div><div class="then"><b id="nino-then">+1.8°C</b><span>1997, before the 1998 drought</span></div></div>
+          <svg class="spark" id="nino-spark" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <p class="fine">Above normal, January–September. Source: NOAA Climate Prediction Center (OISST, 1991–2020 normal). NOAA's 8 October update expects a strong to very strong El Niño through early 2027.</p>
+        </div>
+        <div class="clock" id="now-clock"></div>
+      </div>
+      <div class="now-grid" id="now-grid"></div>
+      <p class="now-src" id="now-src"></p>
+    </section>
+
+    <!-- Insurers and funders -->
+    <section class="funders" id="funders">
+      <div class="head">
+        <p class="eyebrow">For insurers and funders</p>
+        <h2>Does the pool survive? 45 years at Fiji's scale.</h2>
+        <p>About 10,200 cane growers with F$1,000 of cover each, every season since 1983, paid by the same rules and priced by the El Niño forecast made before each season began.</p>
+      </div>
+      <div class="f-ctl">
+        <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Priced by the El Niño forecast</button><button data-p="flat">One flat price</button></div>
+        <label class="f-load">Margin for costs and capital <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
+        <label class="tog"><input type="checkbox" id="f-elnino" /><span>Farmers only buy when El Niño is showing</span></label>
+      </div>
+      <div class="f-chart"><svg id="f-svg" viewBox="0 0 900 320" role="img" aria-label="Money in the pool and payouts, each season since 1983, in Fiji dollars"></svg><div class="f-key"><span><i class="pool"></i>Money in the pool</span><span><i class="out"></i>Paid out that season</span></div></div>
+      <div class="f-stats" id="f-stats"></div>
+      <ul class="audit" aria-label="Audit trail">
+        <li><b>Every payout is a transaction</b> in the contract's public log</li>
+        <li><b>Every reading is sealed</b> and <a href="#check">checkable by anyone</a></li>
+        <li><b>Flagged data waits 14 days</b> before any money moves</li>
+        <li><b>17 automatic checks</b> on the contract's rules</li>
+      </ul>
     </section>
 
     <!-- Check -->
