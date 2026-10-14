@@ -578,3 +578,8 @@ details p b { color: #fff; font-family: var(--mono); }
 }
 .spark text { stroke: none; }
 main { overflow-x: clip; } /* cards sliding in from the side never widen the page */
+/* chart labels: never take the lines' dashed outline */
+.spark text.then, .spark text.now, .spark text { stroke: none; stroke-dasharray: none; }
+/* the season's headline number: big and bold */
+#fc-chance { font-family: var(--head); font-weight: 700; font-size: clamp(110px, 11vw, 168px); line-height: .85; letter-spacing: -0.05em; }
+#fc-chance .count-up, .big-line .count-up { font: inherit; color: inherit; letter-spacing: inherit; } /* the count-up digits are the number itself, not a caption */
