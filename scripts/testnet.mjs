@@ -4,6 +4,7 @@
 //                                            (a previous deployment is kept on record as replaced, with the reason)
 //   node scripts/testnet.mjs seal            seals this season's forecast and pre-season readings on the record, timestamped
 //   node scripts/testnet.mjs report <stage>  each oracle posts its record's reading for the 2026–27 season (early | final)
+//   node scripts/testnet.mjs check           checks the keys match the deployed contract, without posting anything
 //
 // Keys come from the environment or from .env.testnet (never committed; see .gitignore):
 //   DEPLOYER_KEY  a wallet holding test ETH from a faucet (it becomes the insurer and pays everyone's gas)
@@ -114,6 +115,24 @@ if (cmd === 'deploy') {
     }
   }
   save()
+} else if (cmd === 'check') {
+  // Checks the keys without posting anything: each must belong to the wallet the deployed contract expects, with gas
+  // money to post. Prints addresses and balances only, never a key.
+  if (!state.address) throw new Error('nothing deployed yet')
+  const c = new ethers.Contract(state.address, ART.abi, provider)
+  const want = { DEPLOYER_KEY: await c.insurer(), ERA5_KEY: await c.oracles(0), POWER_KEY: await c.oracles(1), CHIRPS_KEY: await c.oracles(2) }
+  let bad = 0
+  for (const [name, expected] of Object.entries(want)) {
+    if (!process.env[name]) { bad++; console.log(`✗ ${name}: missing`); continue }
+    let address
+    try { address = new ethers.Wallet(process.env[name]).address } catch { bad++; console.log(`✗ ${name}: not a valid private key (check for spaces or a missing 0x)`); continue }
+    const gas = Number(ethers.formatEther(await provider.getBalance(address)))
+    const ok = address.toLowerCase() === expected.toLowerCase()
+    if (!ok) bad++
+    console.log(`${ok ? '✓' : '✗'} ${name}: ${address}${ok ? '' : ` but the contract expects ${expected}`} · ${gas.toFixed(4)} test ETH for gas${ok && gas < 0.0005 ? ' (low: top it up)' : ''}`)
+  }
+  console.log(bad ? `\n${bad} problem(s). Fix the secret(s) above and run the check again.` : `\nAll four keys match contract ${state.address} on ${state.network}.`)
+  process.exit(bad ? 1 : 0)
 } else {
-  console.log('usage: node scripts/testnet.mjs deploy | seal | report early|final')
+  console.log('usage: node scripts/testnet.mjs deploy | seal | report early|final | check')
 }

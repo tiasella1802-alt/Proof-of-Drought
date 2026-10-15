@@ -18,9 +18,11 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: 'early or final'
+        description: 'check = test the keys and permissions without posting anything; early or final = post readings'
         required: true
-        default: 'early'
+        type: choice
+        options: [check, early, final]
+        default: check
 
 permissions:
   contents: write
@@ -37,8 +39,31 @@ jobs:
           git config user.email "oracles@users.noreply.github.com"
           git add .github/heartbeat && git commit -m "Heartbeat: keep the season's scheduled oracle runs switched on" && git push
 
+  # Run by hand (Actions → oracles → Run workflow → check): confirms each secret matches its oracle on the contract,
+  # and that this workflow is allowed to save its results to the repo. Posts nothing.
+  check:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Keys match the contract
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          DEPLOYER_KEY: ${{ secrets.DEPLOYER_KEY }}
+          ERA5_KEY: ${{ secrets.ERA5_KEY }}
+          POWER_KEY: ${{ secrets.POWER_KEY }}
+          CHIRPS_KEY: ${{ secrets.CHIRPS_KEY }}
+        run: node scripts/testnet.mjs check
+      - name: Allowed to save results to the repo
+        run: |
+          git push origin HEAD:refs/heads/permission-check && git push origin --delete permission-check             && echo "✓ Read and write permission is on."             || { echo "✗ Can't push: Settings → Actions → General → Workflow permissions → Read and write permissions → Save."; exit 1; }
+
   report:
-    if: github.event.schedule != '0 3 1 * *'
+    if: github.event.schedule != '0 3 1 * *' && github.event.inputs.stage != 'check'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
