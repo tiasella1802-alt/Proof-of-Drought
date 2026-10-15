@@ -32,7 +32,7 @@ jobs:
     if: github.event.schedule == '0 3 1 * *'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           date -u +%Y-%m-%dT%H:%M:%SZ > .github/heartbeat
           git config user.name "proof-of-drought oracles"
@@ -45,10 +45,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'check'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - name: Keys match the contract
         env:
@@ -66,10 +66,10 @@ jobs:
     if: github.event.schedule != '0 3 1 * *' && github.event.inputs.stage != 'check'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - run: node scripts/fetch-climate.mjs && node scripts/fetch-nino.mjs && node scripts/fetch-chirps.mjs
       - run: node scripts/build-index.mjs && node scripts/train-guard.mjs
