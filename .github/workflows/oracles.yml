@@ -1,0 +1,53 @@
+# The oracles for the 2026–27 season, on the public test network. After each checkpoint window closes (and the
+# archives have caught up), this downloads the latest Copernicus, NASA and CHIRPS data, rebuilds the readings and has
+# each oracle post its own record's reading to the deployed contract. Everything it posts is listed in
+# public/data/testnet.json, committed back so the website shows it.
+#
+# Needs repository secrets: DEPLOYER_KEY, ERA5_KEY, POWER_KEY, CHIRPS_KEY (from .env.testnet after `deploy`).
+name: oracles
+
+on:
+  schedule:
+    - cron: '0 2 8 2 *'   # 8 Feb: early check (Nov–Jan), once ERA5 and NASA have the end of January
+    - cron: '0 2 8 5 *'   # 8 May: final check (Nov–Apr)
+    - cron: '0 2 25 3 *'  # 25 Mar: CHIRPS for January is out: witness the early check
+    - cron: '0 2 25 6 *'  # 25 Jun: CHIRPS for April is out: witness the final check
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'early or final'
+        required: true
+        default: 'early'
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node scripts/fetch-climate.mjs && node scripts/fetch-nino.mjs && node scripts/fetch-chirps.mjs
+      - run: node scripts/build-index.mjs && node scripts/train-guard.mjs
+      - name: Post readings
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          DEPLOYER_KEY: ${{ secrets.DEPLOYER_KEY }}
+          ERA5_KEY: ${{ secrets.ERA5_KEY }}
+          POWER_KEY: ${{ secrets.POWER_KEY }}
+          CHIRPS_KEY: ${{ secrets.CHIRPS_KEY }}
+        run: |
+          STAGE="${{ github.event.inputs.stage }}"
+          if [ -z "$STAGE" ]; then case "$(date +%m)" in 02|03) STAGE=early;; *) STAGE=final;; esac; fi
+          node scripts/testnet.mjs report "$STAGE"
+      - name: Save what was posted
+        run: |
+          git config user.name "proof-of-drought oracles"
+          git config user.email "oracles@users.noreply.github.com"
+          git add public/data/testnet.json
+          git commit -m "Oracles posted on-chain readings" || echo "nothing new"
+          git push

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Proof of Drought</title>
-  <meta name="description" content="Drought insurance for Fiji's sugarcane farmers that pays automatically when two satellite records show a drought." />
+  <meta name="description" content="Drought insurance for Fiji's sugarcane farmers that pays automatically when independent climate records agree there's a drought." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
@@ -30,7 +30,7 @@
     <div class="pitch">
       <p class="chip"><span class="live"></span>For Fiji's sugarcane farmers</p>
       <h1>Drought insurance that <em>pays itself.</em></h1>
-      <p class="lede">Satellites check the rain. If it fails, every insured farmer is paid automatically, straight to their phone, without filing a claim.</p>
+      <p class="lede">Three independent rainfall records, from Europe, NASA and satellites, watch every cane district. When they agree the rain has failed, every insured farmer is paid automatically, without filing a claim.</p>
       <div class="cta1">
         <button class="btn hot go pulse" id="go"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Watch the 1998 drought</span></button>
         <button class="lnk" id="try-other" aria-expanded="false" aria-controls="try">Try another farm or year</button>
@@ -61,7 +61,7 @@
             <div><dt>Paid out this season</dt><dd id="in-paid">F$0</dd></div>
             <div><dt>Test farmers paid</dt><dd id="in-farmers">0 of 96</dd></div>
             <div><dt>Districts checked</dt><dd id="in-settled">0 of 16</dd></div>
-            <div><dt>Satellite records disagreed</dt><dd id="in-disagree">0</dd></div>
+            <div><dt>Records disagreed</dt><dd id="in-disagree">0</dd></div>
             <div><dt>On hold (AI flagged the data)</dt><dd id="in-held">0</dd></div>
           </dl>
           <div class="ins-scale"><span>At Fiji's scale: about 10,200 cane growers</span><b id="in-scale">F$0</b><small>paid out so far this season</small></div>
@@ -120,6 +120,15 @@
         </div>
       </div>
       <div class="scale" id="scale"></div>
+      <div class="loop">
+        <p class="loop-h">From rain to phone, step by step</p>
+        <ol>
+          <li><b>Three records watch the rain</b><p>Copernicus ERA5 (Europe) and NASA MERRA-2 are weather models fed with satellite, weather-station and balloon measurements. CHIRPS is satellite rainfall checked against rain gauges.</p></li>
+          <li><b>Three oracles post the readings</b><p>Each posts its record's reading, an AI check on the data and a seal of the raw numbers. In this prototype we run all three. In a real scheme each would be a different organisation, for example a weather service, a university and a reinsurer.</p></li>
+          <li><b>The contract decides and pays</b><p>Two of the three records must agree. Then it pays everyone in the district at once. Here it uses test money; a real scheme would hold a digital Fiji dollar.</p></li>
+          <li class="todo"><b>The money reaches the phone</b><p>A licensed payout partner would turn it into M-PAiSA or MyCash mobile money and send an SMS. Not built yet: it needs a partner and approval from the Reserve Bank of Fiji.</p></li>
+        </ol>
+      </div>
       <p class="src">Source: UN OCHA, Fiji Drought Situation Report No. 2, 16 December 1998. Payout dates: this project's test on real Copernicus and NASA data. Grower count: about 10,200 active cane farmers (Prime Minister Sitiveni Rabuka, reported by the Fiji Times, October 2025).</p>
     </section>
 
@@ -144,7 +153,7 @@
     <section class="cheat" id="cheat">
       <div class="head">
         <p class="eyebrow chap"><i>03</i>Can it be cheated?</p>
-        <h2>You've hacked the European satellite feed. Fake a drought.</h2>
+        <h2>You've hacked the European climate feed. Fake a drought.</h2>
         <p>Ba, 2010–11: a normal, wet season. Report less rain than really fell, then try to claim the payout.</p>
       </div>
       <div class="game">
@@ -158,7 +167,7 @@
         </div>
         <div class="shields">
           <div class="shield" id="s1"><i>1</i><h3>AI check</h3><p></p></div>
-          <div class="shield" id="s2"><i>2</i><h3>Second record</h3><p></p></div>
+          <div class="shield" id="s2"><i>2</i><h3>Two other records</h3><p></p></div>
           <div class="shield" id="s3"><i>3</i><h3>Public seal</h3><p></p></div>
         </div>
       </div>
@@ -174,7 +183,7 @@
       <div class="ai-row">
         <div class="ai-card">
           <p class="k">AI forecast for this season</p>
-          <div class="ai-big"><b id="fc-chance">61%</b></div>
+          <div class="ai-big"><b id="fc-chance">60%</b></div>
           <p class="one">chance a cane district gets a drought payout this season, against <b id="fc-base">17%</b> in a normal year.</p>
           <details><summary>How we know</summary><p id="fc-text"></p></details>
         </div>
@@ -182,6 +191,7 @@
           <p class="k">The price</p>
           <div class="ai-big"><b id="fc-price" class="mid">F$380</b></div>
           <p class="one">per F$1,000 of cover this season. The price follows the El Niño forecast, so nobody can game it by buying only in risky years.</p>
+          <p class="sponsor-line" id="fc-sponsor"></p>
           <details><summary>How we know</summary><p id="fc-why"></p></details>
         </div>
       </div>
@@ -194,6 +204,7 @@
           <p class="fine">Degrees warmer than normal, January to September. Source: NOAA Climate Prediction Center, which expects a strong El Niño to last into early 2027.</p>
         </div>
       </div>
+      <div class="sealed" id="sealed" hidden></div>
       <div class="now-grid" id="now-grid"></div>
       <p class="now-src" id="now-src"></p>
     </section>
@@ -209,15 +220,17 @@
         <div class="seg" id="f-price" role="radiogroup" aria-label="Pricing"><button class="on" data-p="forecast">Price follows the El Niño forecast</button><button data-p="flat">Same price every year</button></div>
         <label class="f-load">Extra for running costs and profit <b id="f-load-v">20%</b><input type="range" id="f-load" min="0" max="50" step="5" value="20" /></label>
         <label class="tog"><input type="checkbox" id="f-elnino" /><span>What if farmers only buy in El Niño years?</span></label>
+        <label class="tog"><input type="checkbox" id="f-sponsor" checked /><span>Sponsors pay the extra in risky years</span></label>
       </div>
       <div class="f-chart"><svg id="f-svg" viewBox="0 0 900 320" role="img" aria-label="Money in the pool and payouts, each season since 1983, in Fiji dollars"></svg><div class="f-key"><span><i class="pool"></i>Money in the pool</span><span><i class="out"></i>Paid out that season</span></div></div>
       <p class="f-verdict" id="f-verdict"></p>
+      <p class="f-sponsor" id="f-sponsor-out"></p>
       <div class="f-stats" id="f-stats"></div>
       <ul class="audit" aria-label="Audit trail">
         <li><b>Every payout is a transaction</b> in the contract's public log</li>
         <li><b>Every reading is sealed</b> and <a href="#check">checkable by anyone</a></li>
         <li><b>Flagged data waits 14 days</b> before any money moves</li>
-        <li><b>17 automatic checks</b> on the contract's rules</li>
+        <li><b>25 automatic checks</b> on the contract's rules</li>
       </ul>
     </section>
 
@@ -226,7 +239,7 @@
       <div class="head">
         <p class="eyebrow chap"><i>06</i>Check the data</p>
         <h2>Check the data yourself.</h2>
-        <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus and NASA, right now, and see if it matches.</p>
+        <p>Every reading the contract used carries a digital seal of the raw data behind it. Download that data straight from Copernicus, NASA and the CHIRPS satellite archive, right now, and see if it matches.</p>
       </div>
       <div class="ck">
         <div class="ck-ask"><span id="ck-what">Ba, November 1997 – April 1998</span><button class="btn dark" id="ck-go">Download and check</button>
@@ -245,7 +258,17 @@
         <div><h3>Simulated</h3><p>The 96 farmers, their wallets and the money are test versions · district points are approximate · the payout rules and pricing margin are this project's proposal; a real scheme would set them with an insurer and the regulator</p></div>
         <div><h3>Built for COP31</h3><p>COP31 meets in Antalya in November 2026. Its Pre-COP ministers met in October in Nadi, Fiji, one of the eight districts this cover protects. It builds on parametric insurance already working in the Pacific (PCRIC, UNDP's PICAP).</p></div>
       </div>
-      <p class="foot">Satellite basemap: Sentinel-2 cloudless – <a href="https://s2maps.eu">https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0. Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Niño-3.4: NOAA Climate Prediction Center. Yields: FAOSTAT.</p>
+      <div class="limits">
+        <h3>What we haven't solved yet</h3>
+        <ul>
+          <li><b>Payouts can miss the harvest.</b> Fiji only publishes cane yields for the whole country, so we can't check district payouts against district harvests. In 1989–90 and 2004–05 the cover paid in a dry season that the cane survived.</li>
+          <li><b>El Niño years are expensive.</b> The fair price can be more than three times the normal one. Sponsors could cover the difference, but no sponsor has signed up.</li>
+          <li><b>Nobody in Fiji has reviewed this yet.</b> Not farmers, the Sugar Cane Growers Fund, the Fiji Meteorological Service or an insurer. Their input would change the rules.</li>
+          <li><b>We run every oracle, with test money.</b> The contract runs on a test network. Real oracles need independent operators.</li>
+          <li><b>The AI is deliberately small.</b> A check for faked data and a one-input forecast that is only a little better than the long-run average.</li>
+        </ul>
+      </div>
+      <p class="foot">Satellite basemap: Sentinel-2 cloudless – <a href="https://s2maps.eu">https://s2maps.eu</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0. Contains modified Copernicus Climate Change Service information 2026 (ERA5, via Open-Meteo, CC BY 4.0). NASA POWER data obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program. Niño-3.4: NOAA Climate Prediction Center. CHIRPS: Funk et al. (2015), UCSB Climate Hazards Center, via NASA/USAID SERVIR ClimateSERV. Yields: FAOSTAT.</p>
       <p class="foot">Built by Tia · IEEE ClimateChain Global Hackathon 2026, Climate Data &amp; Environmental Monitoring · <a href="https://github.com/tiasella1802-alt/Proof-of-Drought">Source code</a></p>
     </section>
   </main>

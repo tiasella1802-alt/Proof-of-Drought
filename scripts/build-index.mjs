@@ -3,19 +3,22 @@
 //
 // Season for crush year Y = the main growing months, November (Y-1) to April (Y). Checkpoints:
 //   early: end of January (Nov–Jan)   final: end of April (Nov–Apr)
-// For each district and checkpoint, four readings: rainfall total and mean soil moisture, from each of two independent
-// sources (A: Copernicus ERA5 / ERA5-Land, B: NASA POWER / MERRA-2). Each reading becomes a percentile against the
-// same window in the WMO 1991–2020 baseline (0 = driest on record in the baseline, 1 = wettest).
-// A source's dryness = mean of its rainfall and soil percentiles; the district's index = mean of both sources.
+// For each district and checkpoint, readings from three independent records: rainfall total and mean soil moisture
+// from A: Copernicus ERA5 / ERA5-Land and B: NASA POWER / MERRA-2 (both reanalyses: weather models that combine
+// satellite, station and balloon observations), and rainfall from C: CHIRPS (satellite estimates blended with rain
+// gauges). Each reading becomes a percentile against the same window in the WMO 1991–2020 baseline (0 = driest).
+// A and B's dryness = mean of their rainfall and soil percentiles; C's = its rainfall percentile.
+// Which records decide, and the index, follow decide() in rules.mjs: A and B when they agree, CHIRPS breaks a tie.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { DISTRICTS } from './districts.mjs'
-import { RULES } from './rules.mjs'
+import { RULES, decide, shareDue } from './rules.mjs'
 
 const climate = Object.fromEntries(readdirSync('data/climate').map((f) => {
   const j = JSON.parse(readFileSync(`data/climate/${f}`, 'utf8'))
   return [j.district.key, j.sources]
 }))
+const chirps = Object.fromEntries(readdirSync('data/chirps').map((f) => { const j = JSON.parse(readFileSync(`data/chirps/${f}`, 'utf8')); return [j.district.key, j] }))
 const yields = Object.fromEntries(JSON.parse(readFileSync('data/yield.json', 'utf8')).years.map((r) => [r.year, r.yield_t_ha]))
 const STAGES = { early: 1, final: 4 } // last month of the window
 const lastDay = Object.values(climate)[0].era5.time.at(-1)
@@ -34,6 +37,14 @@ function reading(src, d, y, last) {
   return { rain: +rain.toFixed(1), soil: +(soil.reduce((a, r) => a + r[2], 0) / soil.length).toFixed(4),
     hash: '0x' + createHash('sha256').update(JSON.stringify(rows)).digest('hex') }
 }
+// CHIRPS: rainfall only. Its window counts only once CHIRPS has published every day of it.
+function chirpsReading(d, y, last) {
+  const c = chirps[d], end = `${y}-${String(last).padStart(2, '0')}-${last === 1 ? 31 : 30}`
+  if (c.time.at(-1) < end) return null
+  const rows = []
+  for (let i = 0; i < c.time.length; i++) if (inSeason(c.time[i], y, last)) rows.push([c.time[i], c.rain[i]])
+  return { rain: +rows.reduce((a, r) => a + (r[1] ?? 0), 0).toFixed(1), hash: '0x' + createHash('sha256').update(JSON.stringify(rows)).digest('hex') }
+}
 const pct = (v, base) => +(base.filter((b) => b <= v).length / base.length).toFixed(3)
 
 const BASE = []; for (let y = 1991; y <= 2020; y++) BASE.push(y)
@@ -42,6 +53,7 @@ for (const d of Object.keys(climate)) for (const [stage, last] of Object.entries
   const rs = BASE.map((y) => reading(src, d, y, last))
   baseVals[`${d}/${stage}/${src}`] = { rain: rs.map((r) => r.rain), soil: rs.map((r) => r.soil) }
 }
+for (const d of Object.keys(climate)) for (const [stage, last] of Object.entries(STAGES)) baseVals[`${d}/${stage}/chirps`] = { rain: BASE.map((y) => chirpsReading(d, y, last).rain) }
 
 function assess(d, y, stage) {
   const last = STAGES[stage], src = {}
@@ -50,11 +62,12 @@ function assess(d, y, stage) {
     const rainPct = pct(r.rain, b.rain), soilPct = pct(r.soil, b.soil)
     src[s] = { ...r, rainPct, soilPct, dryness: +((rainPct + soilPct) / 2).toFixed(3) }
   }
-  const index = +((src.era5.dryness + src.power.dryness) / 2).toFixed(3), gap = +Math.abs(src.era5.dryness - src.power.dryness).toFixed(3)
-  const agree = gap <= RULES.maxGap
-  const due = !agree ? 0 : stage === 'early' ? (index <= RULES.early.at ? RULES.early.pay : 0)
-    : index <= RULES.severe.at ? RULES.severe.pay : index <= RULES.moderate.at ? RULES.moderate.pay : 0
-  return { district: d, season: y, stage, index, gap, agree, due, sources: src }
+  const c = chirpsReading(d, y, last)
+  if (c) { const rainPct = pct(c.rain, baseVals[`${d}/${stage}/chirps`].rain); src.chirps = { ...c, rainPct, dryness: rainPct } }
+  const v = decide({ era5: src.era5.dryness, power: src.power.dryness, chirps: src.chirps?.dryness })
+  const index = v.index == null ? null : +v.index.toFixed(3)
+  return { district: d, season: y, stage, index, gap: +v.gap.toFixed(3), agree: index != null, due: shareDue(stage, index), deciders: v.deciders,
+    tieBreak: !!v.tieBreak, pending: !!v.pending, chirpsAgrees: v.chirpsAgrees ?? null, sources: src }
 }
 
 const seasons = []

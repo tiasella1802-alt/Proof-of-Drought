@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 import { chain, demoKey, addressOf } from './evm.js'
 import { inSeason, seasonAgg, features, score, pct } from './guard.js'
+import { decide } from '../scripts/rules.mjs'
 import { district as trackDistrict, dryness as rankRows, SEASON_START } from './now.js'
 
 maplibregl.setWorkerUrl(workerUrl) // Vite's dependency bundling hides MapLibre's own worker file
@@ -39,11 +40,11 @@ function colour(x) {
 
 // ---------- the in-browser chain: one insurer, two data oracles, test farmers with F$1,000 cover each ----------
 const UNIT = 10n ** 18n, COVER = 1000n
-const K = { insurer: demoKey('insurer'), era5: demoKey('era5 oracle'), power: demoKey('nasa oracle') }
+const K = { insurer: demoKey('insurer'), era5: demoKey('era5 oracle'), power: demoKey('nasa oracle'), chirps: demoKey('chirps oracle') }
 async function newChain(perDistrict) {
   const c = await chain()
   for (const k of Object.values(K)) await c.fund(addressOf(k), 10n ** 9n * UNIT)
-  const dc = await c.deploy(K.insurer, ART, [addressOf(K.era5), addressOf(K.power)])
+  const dc = await c.deploy(K.insurer, ART, [addressOf(K.era5), addressOf(K.power), addressOf(K.chirps)])
   await c.transfer(K.insurer, dc.address, 500_000n * UNIT)
   for (let d = 0; d < D.length; d++) for (let i = 0; i < perDistrict; i++) await dc.write(K.insurer, 'issue', [addressOf(demoKey(`farmer ${d}-${i}`)), d, COVER * UNIT])
   return { c, dc }
@@ -125,17 +126,17 @@ function narrate(rows) {
     const label = step === 2 ? 'Early check' : 'Final check'
     if (st?.checking) {
       s.className = 'status alarm'
-      $('pl-note').textContent = `${label}: both satellite records are reporting to the contract…`
+      $('pl-note').textContent = `${label}: the climate records are reporting to the contract…`
       return
     }
     s.className = `status ${got ? 'paid' : 'calm'}`
-    $('pl-note').textContent = got ? `${label}: both satellite records agree ${name} is in ${was(x)}. ${F(got)} paid to you.`
+    $('pl-note').textContent = got ? `${label}: the climate records agree ${name} is in ${was(x)}. ${F(got)} paid to you.`
       : step === 2 ? `${label}: ${name} isn't in a severe drought yet. Nothing paid, still watching.`
       : st?.you ? `${label}: season over at ${name}. You've been paid ${F(st.you)}.` : `${label}: ${name} had a ${kind(x)} season. No payout needed.`
     return
   }
   s.className = `status${x <= 0.2 ? ' alarm' : ''}`
-  $('pl-note').textContent = `Satellites are watching. So far ${name} is ${drierThan(x)}.`
+  $('pl-note').textContent = `The records are watching the rain. So far ${name} is ${drierThan(x)}.`
 }
 
 function notify(title, body, when) {
@@ -215,13 +216,20 @@ async function checkpoint(stage, my) {
   for (let k = 0; k < rows.length; k++) {
     if (my !== run) return
     const r = rows[k], s = stage === 'early' ? 0 : 1
-    // Each oracle posts its reading, its data guard's verdict and the seal of the raw data behind it.
+    // Each oracle posts its reading, its data guard's verdict and the seal of the raw data behind it. Copernicus and NASA
+    // first; CHIRPS (published a few weeks after the month ends) breaks a tie if they disagree, or is logged as a witness.
     await st.dc.write(K.era5, 'report', [year, s, k, pm(r.sources.era5.dryness), realVerdict(stage, year, k, 'era5'), r.sources.era5.hash])
-    const res = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), realVerdict(stage, year, k, 'power'), r.sources.power.hash])
+    const first = await st.dc.write(K.power, 'report', [year, s, k, pm(r.sources.power.dryness), realVerdict(stage, year, k, 'power'), r.sources.power.hash])
+    const third = r.sources.chirps ? await st.dc.write(K.chirps, 'report', [year, s, k, pm(r.sources.chirps.dryness), 0, r.sources.chirps.hash]) : null
+    const evs = [...first.events, ...(third?.events ?? [])], has = (n) => evs.some((e) => e.name === n)
+    const res = third?.events.some((e) => e.name === 'Settled' || e.name === 'Paid') ? third : first
+    const settled = evs.find((e) => e.name === 'Settled'), paid = evs.filter((e) => e.name === 'Paid')
+    const name = D[k].name, when = stage === 'early' ? `31 Jan ${year}` : `30 Apr ${year}`
+    if (!settled) { log('bad', first.block, `${name} · Copernicus and NASA disagree · waiting for the CHIRPS satellite record to break the tie`); tally(); paint(); continue }
     st.settled++
-    const settled = res.events.find((e) => e.name === 'Settled'), paid = res.events.filter((e) => e.name === 'Paid')
-    const idx = Number(settled.args.index) / 1000, name = D[k].name, when = stage === 'early' ? `31 Jan ${year}` : `30 Apr ${year}`
-    if (res.events.some((e) => e.name === 'SourcesDisagree')) st.disagree++, log('bad', res.block, `${name} · the two records disagree · nothing paid`)
+    const idx = Number(settled.args.index) / 1000, w = evs.find((e) => e.name === 'Witness')
+    const how = has('AwaitingTieBreak') ? 'Copernicus and NASA disagreed, CHIRPS broke the tie' : `Copernicus and NASA agree${w ? (w.args.agrees ? ', CHIRPS confirms' : ', CHIRPS disagrees') : ''}`
+    if (has('SourcesDisagree')) st.disagree++, log('bad', res.block, `${name} · no two of the three records agree · nothing paid`)
     else if (res.events.some((e) => e.name === 'PayoutHeld')) {
       st.held++
       log('bad', res.block, `${name} · ${kind(idx)}, but the AI guard flagged the data · payout held 14 days for review`)
@@ -232,7 +240,7 @@ async function checkpoint(stage, my) {
       st.paid += amt
       st.paidD.add(k)
       cashPop(k, amt)
-      log('pay', res.block, `${name} · both records agree: ${kind(idx)} · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
+      log('pay', res.block, `${name} · ${how}: ${kind(idx)} · ${paid.length} farmers paid ${F(amt)} · ${short(res.hash)}`)
       if (k === farm) {
         const each = Number(paid[0].args.amount / UNIT)
         st.you += each
@@ -240,11 +248,11 @@ async function checkpoint(stage, my) {
         $('ph-bal').classList.add('bump'); setTimeout(() => $('ph-bal').classList.remove('bump'), 400)
         $('ph-date').textContent = `Your cane farm · ${when}`
         notify(`${F(each)} received.`, stage === 'early'
-          ? `Drought confirmed at ${name}: ${drierThan(idx)}. Both satellite records agree. Use it for water, feed and seed.`
+          ? `Drought confirmed at ${name}: ${drierThan(idx)}. The climate records agree. Use it for water, feed and seed.`
           : `The season ended ${drierThan(idx)}. That's ${F(st.you)} this season.`, when)
       }
     } else {
-      log('', res.block, `${name} · ${kind(idx)} · no payout needed`)
+      log('', res.block, `${name} · ${how}: ${kind(idx)} · no payout needed`)
       if (k === farm && stage === 'final' && !st.you) notify('No payout this season.', `${name} had a ${kind(idx)} season. Your cover continues.`, when)
     }
     tally()
@@ -327,7 +335,7 @@ const DROUGHT = [1983, 1987, 1992, 1998, 2010], STORM = { 1985: 'Cyclones Eric a
   $('takeaways').innerHTML =
     `<div class="tk good"><b>Paid in all ${caught.length} drought years</b><p>${caught.join(', ')}: every El Niño drought that cut Fiji's cane harvest.</p></div>` +
     `<div class="tk good"><b>Quiet when it wasn't drought</b><p>Cyclones and floods in ${Object.keys(STORM).join(', ')} hurt harvests too, but need a different kind of cover. It paid ${Object.keys(STORM).map((y) => `${Math.round(SEASON[y].payout * 100)}%`).join(', ')}.</p></div>` +
-    `<div class="tk"><b>Every payout was a genuinely dry season</b><p>In ${falseAlarms.join(" and ")} the satellites correctly saw a dry season and it paid out, but the cane coped and the harvest held up. Those payouts are built into the price below.</p></div>`
+    `<div class="tk"><b>Every payout was a genuinely dry season</b><p>In ${falseAlarms.join(" and ")} the climate records correctly saw a dry season and it paid out, but the cane coped and the harvest held up. Those payouts are built into the price below.</p></div>`
 }
 opts($('f-dist'), D.map((d, k) => [k, d.name]), BA)
 function calc() {
@@ -358,8 +366,9 @@ function attack() {
   const real = SEASON[y].final[k]
   const mine = judge(src, fake(DAYS[y][KEYS[k]][src], src))
   const theirs = both ? judge(other, fake(DAYS[y][KEYS[k]][other], other)) : { dry: real.sources[other].dryness, flagged: false, score: 0, limit: 1 }
-  const gap = Math.abs(pm(mine.dry) - pm(theirs.dry)), index = (mine.dry + theirs.dry) / 2
-  return { f, both, tampered: f < 1, mine, theirs, real, gap, agree: gap <= 250, wouldPay: gap <= 250 && index <= 0.2 }
+  // The third record, CHIRPS (satellite and rain gauges), isn't hacked: it reports what really fell.
+  const sat = real.sources.chirps.dryness, d = decide({ era5: mine.dry, power: theirs.dry, chirps: sat })
+  return { f, both, tampered: f < 1, mine, theirs, real, sat, d, agree: d.deciders[0] === 'era5' && d.deciders[1] === 'power', outvoted: d.deciders.includes('chirps'), wouldPay: d.index != null && d.index <= 0.2 }
 }
 // Each shield says what it actually does: only the second record can stop money moving; the AI check and the seal catch and expose.
 function shield(id, state, html, held = 'Stopped you') {
@@ -374,17 +383,18 @@ function renderGame() {
   $('g-result').className = 'result'
   if (!a.tampered) {
     shield('s1', '', 'Trained on 30 years of real Fiji weather. Spots data that doesn\'t behave like the real thing.')
-    shield('s2', '', `The contract only pays if the European and American records agree. Right now both say Ba's season was ${was(a.real.index)}.`)
+    shield('s2', '', `Three independent records watch Ba: Copernicus (Europe), NASA (USA) and the CHIRPS satellite record. Two must agree. Right now all say Ba's season was ${was(a.real.index)}.`)
     shield('s3', '', 'Every reading is sealed against the public archives, so anyone can check it later.')
     return
   }
   const caught = a.mine.flagged || (a.both && a.theirs.flagged)
   shield('s1', caught ? 'stop' : 'pass', caught ? `<b>Caught.</b> This doesn't look like real Ba weather (strangeness ${a.mine.score.toFixed(1)}; anything over ${a.mine.limit.toFixed(1)} gets flagged). This warning is recorded publicly, and any payout waits 14 days so it can be checked.`
     : `<b>Slipped past.</b> Small fakes can look natural (strangeness ${a.mine.score.toFixed(1)}; the flag goes up over ${a.mine.limit.toFixed(1)}). The other two shields still apply.`, 'Caught you')
-  shield('s2', a.agree ? (a.wouldPay ? 'pass' : '') : 'stop', !a.agree
-    ? `<b>Blocked.</b> ${a.both ? 'Even faked, the two records' : `NASA says Ba's season was ${was(a.theirs.dry)}; you say ${was(a.mine.dry)}. They`} don't agree, so nothing pays.`
-    : a.wouldPay ? `<b>Bypassed.</b> You faked both records so they agree on a ${kind((a.mine.dry + a.theirs.dry) / 2)}.`
-    : `Your fake is too small to matter: the records still agree it was ${was((a.mine.dry + a.theirs.dry) / 2)}.`)
+  shield('s2', a.outvoted ? 'stop' : a.agree && a.wouldPay ? 'pass' : a.d.index == null ? 'stop' : '', a.outvoted
+    ? `<b>Outvoted.</b> You say Ba's season was ${was(a.mine.dry)}. NASA and the CHIRPS satellite record both say ${was(a.d.index)}. Two of three decide, so your record is ignored.`
+    : a.d.index == null ? '<b>Blocked.</b> No two of the three records agree, so nothing pays.'
+    : a.wouldPay ? `<b>Bypassed.</b> You faked both so they agree on a ${kind(a.d.index)}. The CHIRPS satellite record, when it arrives, says ${was(a.sat)}: that goes on the record too.`
+    : `Your fake is too small to matter: the records still agree it was ${was(a.d.index)}.`, 'Outvoted you')
   shield('s3', 'stop', '<b>Exposed.</b> Your data no longer matches the seal, and anyone can check it against Copernicus and NASA to prove it was faked.', 'Exposed you')
 }
 $('g-rain').oninput = $('g-both').oninput = renderGame
@@ -402,13 +412,17 @@ $('g-go').onclick = async () => {
     const v1 = a.tampered ? verdict(a.mine.score / a.mine.limit) : realVerdict('final', G.y, G.k, 'era5')
     const v2 = a.both && a.tampered ? verdict(a.theirs.score / a.theirs.limit) : realVerdict('final', G.y, G.k, 'power')
     await gameChain.dc.write(K.era5, 'report', [season, 1, G.k, pm(a.mine.dry), v1, fakeSeal])
-    const res = await gameChain.dc.write(K.power, 'report', [season, 1, G.k, pm(a.theirs.dry), v2, a.both && a.tampered ? fakeSeal : a.real.sources.power.hash])
+    let res = await gameChain.dc.write(K.power, 'report', [season, 1, G.k, pm(a.theirs.dry), v2, a.both && a.tampered ? fakeSeal : a.real.sources.power.hash])
+    const r = $('g-result'), waiting = res.events.some((e) => e.name === 'AwaitingTieBreak')
+    // Copernicus and NASA disagree: the contract waits for the satellite record to break the tie.
+    if (waiting) res = await gameChain.dc.write(K.chirps, 'report', [season, 1, G.k, pm(a.sat), 0, a.real.sources.chirps.hash])
     const paid = res.events.filter((e) => e.name === 'Paid'), amt = paid.reduce((s, e) => s + Number(e.args.amount / UNIT), 0)
-    const r = $('g-result')
-    if (res.events.some((e) => e.name === 'SourcesDisagree')) r.className = 'result no', r.innerHTML = '<b>Nothing paid.</b> The contract saw two records that disagree and refused. Your attempt is now on the public record for anyone to investigate.'
+    const decided = res.events.find((e) => e.name === 'Settled')
+    if (waiting && decided && Number(decided.args.b) === 2 && !paid.length) r.className = 'result no', r.innerHTML = `<b>Nothing paid. You were outvoted.</b> Your record disagreed with NASA, so the contract waited for the CHIRPS satellite record. It sided with NASA: Ba's season was ${was(Number(decided.args.index) / 1000)}. Your attempt stays on the public record.<span class="tx">Decided in block #${res.block}</span>`
+    else if (res.events.some((e) => e.name === 'SourcesDisagree')) r.className = 'result no', r.innerHTML = '<b>Nothing paid.</b> No two of the three records agree, so the contract refused. Your attempt is now on the public record for anyone to investigate.'
     else if (res.events.some((e) => e.name === 'PayoutHeld')) {
       r.className = 'result no'
-      r.innerHTML = `<b>Payout held for 14 days: the AI flagged the data.</b> Both records agree on a drought, but the guard says they don't look like real Ba weather, and its verdict is on-chain. No money moves while anyone can challenge it.<span class="tx">Held in block #${res.block}</span>`
+      r.innerHTML = `<b>Payout held for 14 days: the AI flagged the data.</b> Your faked Copernicus and NASA records agree on a drought, but the guard says they don't look like real Ba weather, and its verdict is on-chain. No money moves while anyone can challenge it.<span class="tx">Held in block #${res.block}</span>`
       await wait(1800)
       const bothFlagged = v1 > 1000 && v2 > 1000
       if (!bothFlagged) {
@@ -436,7 +450,18 @@ const ckWhat = () => { const k = +$('ck-dist').value, y = +$('ck-season').value;
 $('ck-dist').oninput = $('ck-season').oninput = ckWhat
 $('ck-other').onclick = () => { $('ck-pick').hidden = !$('ck-pick').hidden }
 const sha = async (rows) => '0x' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(rows))))].map((b) => b.toString(16).padStart(2, '0')).join('')
-const liveRows = (src, d, y) => fetchRows(src, d, `${y - 1}-11-01`, `${y}-04-30`)
+const liveRows = (src, d, y) => (src === 'chirps' ? chirpsRows(d, `${y - 1}-11-01`, `${y}-04-30`) : fetchRows(src, d, `${y - 1}-11-01`, `${y}-04-30`))
+// CHIRPS daily rainfall via ClimateSERV (NASA/USAID SERVIR): submit a job, wait for it, read it. Same cell and rounding as scripts/fetch-chirps.mjs.
+async function chirpsRows(d, from, to) {
+  const API = 'https://climateserv.servirglobal.net/api', us = (iso) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`, hh = 0.025
+  const box = { type: 'Polygon', coordinates: [[[d.lon - hh, d.lat - hh], [d.lon + hh, d.lat - hh], [d.lon + hh, d.lat + hh], [d.lon - hh, d.lat + hh], [d.lon - hh, d.lat - hh]]] }
+  const q = new URLSearchParams({ datatype: 0, begintime: us(from), endtime: us(to), intervaltype: 0, operationtype: 5, dateType_Category: 'default', isZip_CurrentDataType: false, geometry: JSON.stringify(box) })
+  const json = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
+  const [id] = await json(`${API}/submitDataRequest/?${q}`)
+  for (let i = 0; i < 60; i++) { const [p] = await json(`${API}/getDataRequestProgress/?id=${id}`); if (p >= 100) break; if (p < 0) throw new Error('ClimateSERV job failed'); await wait(2000) }
+  const { data } = await json(`${API}/getDataFromRequest/?id=${id}`)
+  return data.map((r) => [`${r.year}-${String(r.month).padStart(2, '0')}-${String(r.day).padStart(2, '0')}`, r.value.avg < 0 ? null : +r.value.avg.toFixed(2)])
+}
 // Daily [date, rain, soil] straight from the public archives (both allow requests from any web page).
 async function fetchRows(src, d, from, to, signal) {
   const json = (u) => fetch(u, { signal }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() })
@@ -453,12 +478,14 @@ $('ck-go').onclick = async () => {
   const k = +$('ck-dist').value, y = +$('ck-season').value, rec = SEASON[y].final[k], btn = $('ck-go')
   btn.disabled = true
   btn.textContent = 'Downloading…'
-  const NAMES = { era5: 'Copernicus ERA5 (Europe)', power: 'NASA POWER (USA)' }
+  const NAMES = { era5: 'Copernicus ERA5 (Europe)', power: 'NASA POWER (USA)', chirps: 'CHIRPS satellite record (UC Santa Barbara)' }
   const rows = [], dry = {}
   let exact = true, failed = false
   NOWDATA ??= await get('now.json') // the 1991–2020 baseline, to re-rank revised data the way the contract did
-  for (const src of ['era5', 'power']) {
+  for (const src of ['era5', 'power', 'chirps']) {
     const s = rec.sources[src]
+    if (!s) continue
+    if (src === 'chirps') btn.textContent = 'Asking the satellite archive…'
     try {
       const live = (await liveRows(src, D[k], y)).filter(([t]) => t >= `${y - 1}-11-01` && t <= `${y}-04-31`)
       const hash = await sha(live), ok = hash === s.hash, rain = live.reduce((a, x) => a + (x[1] ?? 0), 0)
@@ -468,7 +495,13 @@ $('ck-go').onclick = async () => {
         rows.push(`<div class="ck-row ok"><span class="ic">✓</span><div><b>${NAMES[src]}: identical to the sealed record</b>` +
           `<span>${Math.round(rain)} mm of rain from November to April</span><code>${hash}</code></div></div>`)
       } else {
-        // Reanalysis archives are sometimes revised (often by 0.1 mm here and there). Say how much, and whether it matters.
+        // Archives are sometimes revised (often by 0.1 mm here and there). Say how much, and whether it matters.
+        if (src === 'chirps') {
+          dry[src] = s.dryness // no baseline shipped for CHIRPS: keep its sealed ranking, report the change in rainfall
+          rows.push(`<div class="ck-row rev"><span class="ic">≈</span><div><b>${NAMES[src]}: the archive has been revised since this was sealed</b>` +
+            `<span>${rain.toFixed(1)} mm of rain now, ${s.rain.toFixed(1)} mm when sealed.</span><code>now ${hash}<br>sealed ${s.hash}</code></div></div>`)
+          continue
+        }
         const days = live.filter(([t]) => !t.endsWith('-02-29')), padded = [...Array(SEASON_START).fill([null, null, null]), ...days]
         dry[src] = rankRows(padded, NOWDATA.districts[KEYS[k]][src].base, SEASON_START, padded.length).dryness
         const same = kind(dry[src]) === kind(s.dryness)
@@ -483,10 +516,10 @@ $('ck-go').onclick = async () => {
   }
   const verdict = (due) => (due ? `paid ${Math.round(due * 100)}% of the cover` : 'paid nothing')
   // What the contract would decide from today's archive, by the same rules.
-  const R = IDX.rules, idx = (dry.era5 + dry.power) / 2, agree = Math.abs(dry.era5 - dry.power) <= R.maxGap
-  const dueNow = !agree ? 0 : idx <= R.severe.at ? R.severe.pay : idx <= R.moderate.at ? R.moderate.pay : 0
+  const now = decide({ era5: dry.era5, power: dry.power, chirps: dry.chirps }), R = IDX.rules
+  const dueNow = now.index == null ? 0 : now.index <= R.severe.at ? R.severe.pay : now.index <= R.moderate.at ? R.moderate.pay : 0
   $('ck-rows').innerHTML = rows.join('') + `<div class="ck-sum">${failed ? 'One of the archives didn\'t answer. Try again in a moment.'
-    : exact ? `Both records match exactly. The contract ${verdict(rec.due)} for ${D[k].name} that season, based on real, unaltered data.`
+    : exact ? `Every record matches exactly. The contract ${verdict(rec.due)} for ${D[k].name} that season, based on real, unaltered data.`
     : dueNow === rec.due ? `The archive has been revised slightly since the seal was made, which happens with reanalysis data. The decision doesn't change: by the same rules, today's data also ${verdict(dueNow).replace('paid', 'pays')}. The seal proves exactly which data the contract used.`
     : `The revised archive would change the decision (${verdict(dueNow).replace('paid', 'pays')} instead of ${verdict(rec.due).replace('paid ', '')}). The seal proves which data the contract actually used, so any dispute can be settled.`}</div>`
   btn.disabled = false
@@ -541,6 +574,7 @@ setInterval(clock, 60_000)
   $('fc-base').textContent = `${Math.round(FC.base * 100)}%`
   $('fc-text').innerHTML = `We taught a simple computer model using ${n} past seasons. It learned that when the Pacific Ocean is warmer than usual in August and September (El Niño), droughts are much more likely. This year the ocean is warmer than in any of them. It can be wrong: in ${quiet.join(' and ')} the ocean was warm too, and no drought payout was needed.`
   $('fc-price').textContent = F(price * 1000)
+  if (price > FC.pricing.flat) $('fc-sponsor').innerHTML = `With a premium sponsor, a farmer pays <b>${F(FC.pricing.flat * 1000)}</b>, the normal-year price, and the sponsor pays the other <b>${F((price - FC.pricing.flat) * 1000)}</b>. <a href="#funders">How sponsors work ↓</a>`
   $('fc-why').innerHTML = `If the price never changed, people would only buy when a drought was coming, and the pool would pay out about F$${Math.round(P.flatLossRatio)} for every F$1 it took in. So the price rises in risky years and falls in calm ones. Sales close on 1 November, before anyone knows how much rain will fall.`
 }
 // Today's readings, ranked like a checkpoint. The saved copy shows straight away; today's download replaces it when it lands.
@@ -581,6 +615,16 @@ function showNow(got, mode) {
     : mode === 'saved' ? `Saved readings to ${dayName(upto)}. Checking Copernicus and NASA for newer ones…`
     : `Saved readings to ${dayName(upto)}: the archives didn't answer just now. Reload to try again.`
 }
+// Sealed on a public test network: this season's forecast and pre-season readings, timestamped (see scripts/testnet.mjs).
+fetch('/data/testnet.json').then((r) => (r.ok ? r.json() : null)).then((t) => {
+  if (!t?.address) return
+  const forecast = t.sealed.filter((x) => x.what === 'forecast'), readings = t.sealed.filter((x) => x.what.startsWith('pre-season'))
+  const when = forecast[0]?.at ? new Date(forecast[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const posted = t.reports?.length ? ` The oracles have since posted ${t.reports.length} readings for this season.` : ' Come back after 31 January 2027 to see whether it was right.'
+  $('sealed').hidden = false
+  $('sealed').innerHTML = `<b>Sealed on ${when}, before the rain falls.</b> This forecast and ${readings.length} pre-season readings are on ${t.network}, timestamped. Nobody can change them, including us.${posted}` +
+    ` <a href="${t.contract}" target="_blank" rel="noopener">See the contract</a>${forecast[0] ? ` · <a href="${forecast[0].tx}" target="_blank" rel="noopener">the sealed forecast</a>` : ''}`
+}).catch(() => {})
 // Start soon after the page loads (not on scroll), so the cards are filled long before anyone reaches them.
 setTimeout(() => track().catch(() => {}), 1200)
 
@@ -594,12 +638,20 @@ setTimeout(() => track().catch(() => {}), 1200)
 // ---------- 7. for insurers and funders: does the pool survive? ----------
 let fPrice = 'forecast'
 function funders() {
-  const L = +$('f-load').value / 100, onlyElNino = $('f-elnino').checked, per = GROWERS / D.length, P = FC.pricing
+  const L = +$('f-load').value / 100, onlyElNino = $('f-elnino').checked, sponsored = $('f-sponsor').checked && fPrice === 'forecast', per = GROWERS / D.length, P = FC.pricing
+  $('f-sponsor').closest('label').hidden = fPrice !== 'forecast'
+  let fromSponsors = 0, sponsorSeasons = 0, farmerMax = 0
   $('f-load-v').textContent = `${Math.round(L * 100)}%`
   // Each season: premiums collected at sale (before the season, priced by that year's forecast), then payouts by the rules.
   const rows = FC.history.map((h) => {
     const buys = !onlyElNino || h.nino >= 1
     const prem = buys ? h.districts.reduce((a, d) => a + (fPrice === 'flat' ? P.flat : d.chance * P.shareWhenPaid), 0) * (1 + L) * per * 1000 : 0
+    // A sponsor pays whatever the forecast price is above the normal-year price, so farmers never pay more than that.
+    if (buys && sponsored) {
+      const extra = h.districts.reduce((a, d) => a + Math.max(0, d.chance * P.shareWhenPaid - P.flat), 0) * (1 + L) * per * 1000
+      if (extra > 0) fromSponsors += extra, sponsorSeasons++
+      farmerMax = Math.max(farmerMax, Math.min(P.flat, Math.max(...h.districts.map((d) => d.chance * P.shareWhenPaid))) * (1 + L) * 1000)
+    }
     const pay = buys ? h.districts.reduce((a, d) => a + d.paid, 0) * per * 1000 : 0
     return { season: h.season, prem, pay }
   })
@@ -626,6 +678,8 @@ function funders() {
       `<text class="note" x="${hx + (right ? -10 : 10)}" y="${top + 40}" text-anchor="${right ? 'end' : 'start'}">${note}</text>` : '')
   const ratio = totPay / totPrem, profit = totPrem - totPay
   const back = ratio <= 1 ? `${Math.round(ratio * 100)} cents` : `F$${ratio.toFixed(2)}`
+  $('f-sponsor-out').hidden = !sponsored
+  if (sponsored) $('f-sponsor-out').innerHTML = `<b>Sponsors:</b> ${millions(fromSponsors)} over ${rows.length} seasons, in the ${sponsorSeasons} riskiest years only. With it, no farmer ever paid more than <b>${F(farmerMax)}</b> a year for F$1,000 of cover. On a blockchain, every sponsor dollar can be traced to the district and season it protected. A government could fund this from climate finance such as the new UN Fund for responding to Loss and Damage.`
   $('f-verdict').className = `f-verdict ${ratio <= 1 ? 'good' : 'bad'}`
   $('f-verdict').innerHTML = ratio <= 1
     ? `<b>✓ The pool works.</b> For every F$1 farmers pay, ${back} is paid back to them. The rest pays for running the scheme and the insurer's profit.${onlyElNino ? ' Even if people only buy in El Niño years, the forecast price keeps it safe.' : ''}`
@@ -636,7 +690,7 @@ function funders() {
     `<div class="${ratio <= 1 ? 'good' : 'bad'}"><b>${back}</b><span>paid back to farmers for every F$1 they pay</span></div>`
 }
 $('f-price').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; fPrice = b.dataset.p; for (const x of $('f-price').children) x.classList.toggle('on', x === b); funders() }
-$('f-load').oninput = $('f-elnino').oninput = funders
+$('f-load').oninput = $('f-elnino').oninput = $('f-sponsor').oninput = funders
 funders()
 
 // ---------- 8. moving through the story: cards flip into place, chapters, count-ups ----------

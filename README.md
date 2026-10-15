@@ -1,6 +1,6 @@
 # Proof of Drought
 
-**Drought cover for Fiji's sugarcane farmers that pays itself, the moment two independent satellite records agree the rain has failed.**
+**Drought cover for Fiji's sugarcane farmers that pays itself, as soon as independent climate records agree the rain has failed.**
 
 IEEE ClimateChain Global Hackathon 2026 · Track: **Climate Data & Environmental Monitoring** ("environmental data is fragmented and difficult to verify")
 
@@ -14,23 +14,28 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 
 ## What it does
 
-1. **Two independent data sources.** Daily rainfall and soil moisture since 1981 for Fiji's eight cane districts, from **Copernicus ERA5 / ERA5-Land** (Europe) and **NASA POWER / MERRA-2** (US).
-2. **A drought index anyone can recompute.** For each district: the season's rainfall and soil moisture as percentiles of the WMO 1991–2020 baseline, averaged across both sources.
-3. **A data guard (AI).** An anomaly-detection model trained on 30 years of real data flags readings that don't behave like real Fiji weather. Its verdict goes on-chain with every reading, and a flagged payout waits 14 days so it can be challenged.
-4. **A smart contract that pays.** Two oracles, one per source, each post their reading, the guard's verdict and the SHA-256 fingerprint of the exact daily data behind it. When both have reported, `DroughtCover.sol` checks they agree, applies the public rules and pays every farmer in the district at once.
-5. **Public verification.** Anyone can re-download the data from Copernicus and NASA and check it against the fingerprint on the ledger. The website does this live, in the browser. Reanalysis archives are occasionally revised (Open-Meteo changed some ERA5 daily rain values by about 0.1 mm between 12 and 14 October 2026, so the data here was re-downloaded on 14 October; no payout in the backtest changed). If the archive has been revised since a reading was sealed, the check says so, shows how much the totals moved, and re-ranks the new data by the same rules to show whether the payout decision would change.
-6. **A live tracker for the 2026–27 season.** A strong El Niño is under way (NOAA's Niño-3.4 index was +2.8 °C in September 2026, against +1.8 °C in September 1997). The site downloads today's Copernicus and NASA readings for every district as you open it and ranks them exactly as the contract will, with a countdown to each checkpoint.
-7. **A forecast and a price (AI).** A model trained on 44 seasons gives the chance a district pays this season, and the same model sets a premium that can't be gamed by buying only in El Niño years.
+1. **Three independent rainfall records** for Fiji's eight cane districts, daily since 1981:
+   - **Copernicus ERA5 / ERA5-Land** (Europe) and **NASA POWER / MERRA-2** (USA): *reanalyses*, weather models that combine satellite, weather-station and balloon observations. Rainfall and soil moisture.
+   - **CHIRPS** (UC Santa Barbara Climate Hazards Center): satellite rainfall estimates blended with rain-gauge records, the standard rainfall dataset in index-insurance design. Published a few weeks after each month.
+2. **A drought index anyone can recompute.** For each district: the season's rainfall (and soil moisture) as percentiles of the WMO 1991–2020 baseline.
+3. **Two of three must agree.** Copernicus and NASA decide when they agree; CHIRPS is logged as a witness. If they disagree, CHIRPS breaks the tie. One faked or broken record can neither trigger a payout nor block an honest one.
+4. **A data guard (AI).** An anomaly-detection model trained on 30 years of real data flags readings that don't behave like real Fiji weather. Its verdict goes on-chain with every reading, and a flagged payout waits 14 days so it can be challenged.
+5. **A smart contract that pays.** Three oracles, one per record, each post their reading, the guard's verdict and the SHA-256 fingerprint of the exact daily data behind it. `DroughtCover.sol` applies the public rules and pays every farmer in the district at once.
+6. **Public verification.** Anyone can re-download the data from Copernicus, NASA and the CHIRPS archive and check it against the fingerprint on the ledger. The website does this live, in the browser.
+7. **A live tracker for the 2026–27 season.** A strong El Niño is under way (NOAA's Niño-3.4 index was +2.8 °C in September 2026, against +1.8 °C in September 1997). The site downloads today's readings for every district and ranks them exactly as the contract will, with a countdown to each checkpoint.
+8. **A forecast, a fair price and sponsors.** A model trained on 44 seasons gives the chance a district pays this season; the same model sets a premium that can't be gamed, and sponsors can pay the extra in risky years so farmers never pay more than the normal-year price.
+9. **Sealed before the rain falls.** `scripts/testnet.mjs` deploys the contract to a public test network and seals this season's forecast and pre-season readings on it, timestamped. A scheduled job (`.github/workflows/oracles.yml`) has the three oracles post the real readings after 31 January and 30 April 2027.
 
-### The rules (in `scripts/rules.mjs` and `contracts/DroughtCover.sol`, checked to match)
+### The rules (in `scripts/rules.mjs` and `contracts/DroughtCover.sol`, tested to match)
 
 | Checkpoint | Trigger | Pays |
 | :--- | :--- | :--- |
 | Early, end of January | District in its driest 10% | 30% of cover, while there's time to save stock and replant |
 | Final, end of April | District in its driest 10% | 100% of cover, less anything paid early |
 | Final, end of April | District in its driest 20% | 50% of cover |
-| Any | The two sources differ by more than 25 percentile points | Nothing; the disagreement is logged on-chain |
-| Any | Either source's data guard flags its reading, and a payout is due | Payout held for 14 days; after it, anyone can release it. If both guards flagged it, the insurer can reject it during the 14 days (logged on-chain) |
+| Any | Copernicus and NASA within 25 percentile points | They decide; CHIRPS is logged as a witness when it arrives |
+| Any | Copernicus and NASA further apart | Wait for CHIRPS; the pair that agrees decides. If no two agree, nothing pays and the disagreement is logged |
+| Any | A deciding reading flagged by the data guard, and a payout is due | Payout held for 14 days; after it, anyone can release it. The insurer can reject it during the 14 days only with two signals: both deciding readings flagged, or one flagged and CHIRPS disagreeing |
 
 ## Results
 
@@ -50,13 +55,14 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 | 2005 | 31% | 5/8 | 0% | Dry season, harvest held up |
 
 - Every El Niño drought loss year was paid. The cyclone and flood loss years were not, as intended: they need a different product.
-- Every payout was in a genuinely dry season (both records in the driest 20%). In two of them, 1990 and 2005, the cane coped and the harvest held up; those payouts are included in the price below.
-- Average payout: **10.4% of cover per year**, the fair price before costs.
+- Every payout was in a genuinely dry season. In two of them, 1990 and 2005, the cane coped and the harvest held up; those payouts are included in the price below.
+- Average payout: **10.5% of cover per year**, the fair price before costs.
+- **The satellite record backs the decisions.** Where CHIRPS was a witness, it agreed with the Copernicus/NASA decision at 550 of 637 checkpoints (86%). It broke 80 ties. Adding it as a tie-breaker changed one season's payout (1985–86: 13% → 16%).
 - Yields are national; payouts are per district, so district payouts can't be validated against district harvests.
 
 ### Data guard
 
-Trained on 1991–2020; features: rainfall-vs-soil percentile gap, dryness vs the other districts, and the error of a daily water-balance regression. One model per checkpoint window (final: Nov–Apr; early: Nov–Jan). Threshold = 99th percentile of real readings. Evaluated over every season 1982–2026 (training years included):
+Trained on 1991–2020; features: rainfall-vs-soil percentile gap, dryness vs the other districts, and the error of a daily water-balance regression. One model per checkpoint window (final: Nov–Apr; early: Nov–Jan), for Copernicus and NASA (CHIRPS has no soil moisture, so no guard; it's checked by the two-of-three rule). Threshold = 99th percentile of real readings. Evaluated over every season 1982–2026 (training years included):
 
 | | Real readings flagged | Rain halved | Rain cut to 30% | Rain wiped to zero | Rain and soil both faked |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -65,49 +71,61 @@ Trained on 1991–2020; features: rainfall-vs-soil percentile gap, dryness vs th
 | ERA5, early check | 1.1% | 48% | 66% | 85% | 73% |
 | NASA POWER, early check | 1.1% | 57% | 72% | 93% | 73% |
 
-Each oracle posts the guard's verdict on-chain with its reading (the score as a share of the threshold). If either is flagged and a payout is due, the contract holds it for 14 days, and anyone can release it after. The insurer can reject it during that time only if **both** guards flagged it (for example after showing the data doesn't match the public archives). Payouts on unflagged data are never delayed. **In 45 years of real data, the guard flagged 16 readings and none of them was in a season that paid, so it would never have delayed a real payout.**
+**In 45 years of real data, the guard flagged 16 readings and none of them was in a season that paid, so it would never have delayed a real payout.**
 
-The guard is one of three locks: the contract also requires two independent agencies' data to agree, and every reading's fingerprint can be checked against the public archives by anyone. In the website's "fake a drought" game, hacking both feeds hard enough to trigger a payout gets the payout held and then rejected. A fake subtle enough to slip past the guard would be paid, but it stays provably different from the archives, permanently. The guard runs inside the oracles, so it protects against faked *data*; stolen oracle *keys* could post a false verdict, which is what the public seal is for.
-
-**Threat model for the hold.** Who could stop a real payout?
-- One oracle alone, or the insurer plus one colluding oracle posting a false flag: they can **delay** it by 14 days but can't cancel it, because rejection needs both guards' flags.
-- Both oracles plus the insurer: they could cancel it, in public, with the real data still in the archives to prove it. A real scheme would make the oracles independent organisations (or a multisig) and could hand rejection to an independent arbiter.
+**Who could stop a real payout?**
+- One record faked or broken: it is outvoted by the other two.
+- One oracle, or the insurer plus one colluding oracle posting a false flag: they can **delay** a payout by 14 days but can't cancel it, because rejection needs two signals.
+- Faking both Copernicus and NASA: the guard flags it (in the website's game, every fake big enough to pay is held and then rejected), CHIRPS disagrees on the record, and the data no longer matches the public archives.
+- The guard runs inside the oracles, so it protects against faked *data*; stolen oracle *keys* could post a false verdict, which is what the public seals and the independent third record are for. A real scheme would have independent organisations run the three oracles.
 
 ### Forecast: the chance a district pays this season
 
 One input, known by early October, a month before cover is sold: the Niño-3.4 sea-surface temperature anomaly averaged over August and September (NOAA CPC). Logistic regression over every district and season since 1983, tested by leaving one whole season out at a time.
 
-- In an ordinary season, 17% of districts are paid. For 2026–27 the model says **61%**.
-- Skill against always guessing the average: 5.5% better (Brier score, on seasons it never saw). That is a small improvement. The 1987–88 and 2023–24 seasons had strong El Niños and brought no drought payouts.
+- In an ordinary season, 17% of districts are paid. For 2026–27 the model says **60%**.
+- It is only 5% better than always guessing the average (Brier score, on seasons it never saw). The 1987–88 and 2023–24 seasons had strong El Niños and brought no drought payouts.
 - This year's El Niño is stronger than any in the training seasons, so the model treats it as being as strong as the strongest one it has seen (1997).
 - We tried adding each district's September soil moisture. It barely changed the skill and its weight pointed the wrong way, so it was left out.
 
-### Pricing that can't be gamed
+### Pricing that can't be gamed, and sponsors
 
 If everyone can see El Niño coming, people will buy cover only in El Niño years. Over 1983–2026:
 
 | Buyers who only join when Niño-3.4 ≥ +1 °C | Paid out per F$1 of premium |
 | :--- | ---: |
-| One flat price (10.6% of cover a year) | **3.15** (the pool goes broke) |
-| Priced by the forecast before each season | **1.03** |
+| One flat price (10.7% of cover a year) | **3.13** (the pool goes broke) |
+| Priced by the forecast before each season | **1.06** |
 
-Sales close on 1 November, before the season's rain is known. This season's forecast price is about F$380 per F$1,000 of cover before costs. A price that high in an El Niño year is where government or donor premium support matters most.
+This season's forecast price is about F$371 per F$1,000 of cover before costs, against F$107 in a normal year. **Sponsors** (a government or donor) can pay into a district's pool through `sponsor(district)`; the contract uses sponsor money first and logs every sponsor dollar against the district and season it paid for. Run over 44 seasons at Fiji's scale with a 20% margin, sponsors would have paid F$16.9 million, in the 15 riskiest years only, and no farmer would ever have paid more than F$129 a year for F$1,000 of cover. A government could fund this from climate finance such as the UN Fund for responding to Loss and Damage, whose start-up phase has US$250 million for 2025–26.
 
 ### At Fiji's scale
 
-Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread evenly across the eight districts, the 1998 season would have paid **F$2.7 million in January and F$10.2 million by the end of April**. The website's insurer view and "For insurers and funders" section run the pool over 44 seasons at this scale: priced by the forecast with a 20% margin, it needs F$14.8 million of starting capital never to run dry and pays out F$0.83 per F$1 of premium.
+Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread evenly across the eight districts, the 1998 season would have paid **F$2.7 million in January and F$10.2 million by the end of April**. Priced by the forecast with a 20% margin, the pool needs F$15.1 million set aside at the start to always pay everyone, pays back 83 cents of every F$1 in premiums, and ends 44 seasons F$9.8 million ahead.
 
 ### Contract
 
-`npm test` runs 17 checks against a fresh deployment: only the insurer issues policies, only the two oracles report, one oracle alone can't trigger a payout, early + final never exceeds 100%, disagreeing sources pay nothing, the pool must cover every payout before anyone is paid, a wallet that refuses payment can't block its district (its money waits for it), a flagged payout is held, can be rejected only during its challenge period and only if both guards flagged it, and is released after it, flagged data with nothing due isn't held, and the on-chain rule matches `scripts/rules.mjs`.
+`npm test` runs 25 checks against a fresh deployment, including: only the insurer issues policies; only the three oracles report; one oracle alone can't trigger a payout; early + final never exceeds 100%; when Copernicus and NASA disagree the checkpoint waits for CHIRPS; a faked record is outvoted; a broken record can't block an honest payout; no two records agreeing pays nothing; the pool must cover every payout before anyone is paid; a wallet that refuses payment can't block its district; a held payout needs two signals to be rejected and is released after its challenge period; sponsor money is traced to its district and season; forecasts are sealed with their timestamp; and on 40 random three-record seasons the contract decides exactly as `scripts/rules.mjs`.
 
-## What's real and what's simulated
+## From rain to phone
 
-**Real:** all weather data (Copernicus ERA5 / ERA5-Land, NASA POWER), including today's readings in the live tracker; the Niño-3.4 record (NOAA CPC); FAOSTAT yields; the 1998 figures and timeline (UN OCHA); the smart contract, executed by a real Ethereum Virtual Machine.
+1. The three records watch the rain. *(Built.)*
+2. Three oracles post readings, guard verdicts and data seals. *(Built; in this prototype the project runs all three.)*
+3. The contract decides and pays every farmer in the district. *(Built; test money. A real scheme would hold a regulated digital Fiji dollar.)*
+4. A licensed payout partner turns the payment into M-PAiSA or MyCash mobile money and sends an SMS. *(Proposed, not built: it needs a partner and approval from the Reserve Bank of Fiji.)*
 
-**Simulated:** the 96 farmers, their wallets and the money (test funds on a private chain in the browser); district points are approximate centres of each cane sector; the payout rules, the 20% pricing margin and the even split of growers across districts were set by this project, and a real scheme would set them with an insurer and the regulator.
+## What's real, what's simulated, and what isn't solved
 
-**Not done yet:** the contract runs on a private chain in the browser, not a public testnet; alerts are in English only (Fiji Hindi and iTaukei versions need checking by native speakers first).
+**Real:** all weather data (Copernicus ERA5 / ERA5-Land, NASA POWER, CHIRPS), including today's readings in the live tracker; the Niño-3.4 record (NOAA CPC); FAOSTAT yields; the 1998 figures and timeline (UN OCHA); the smart contract, executed by a real Ethereum Virtual Machine (in the browser, and on a public test network once deployed).
+
+**Simulated:** the 96 test farmers, their wallets and the money; district points are approximate centres of each cane sector; the payout rules, the 20% pricing margin and the even split of growers across districts were set by this project, and a real scheme would set them with an insurer and the regulator.
+
+**Not solved yet:**
+- *Basis risk.* Yields are published only for Fiji as a whole, so district payouts can't be checked against district harvests, and 1990 and 2005 paid in a dry season the cane survived. A next step is a vegetation-health (NDVI) check of the cane at the final checkpoint.
+- *Nobody in Fiji has reviewed it.* Not farmers, the Sugar Cane Growers Fund, the Fiji Meteorological Service or an insurer.
+- *Independent oracles.* The project runs all three oracle keys; a real scheme needs independent operators.
+- *The AI is small on purpose*: an anomaly check and a one-input forecast that is only a little better than the average.
+- *Payout to mobile money* is a proposal. Alerts are in English only (Fiji Hindi and iTaukei versions need checking by native speakers).
 
 ## Run it
 
@@ -144,22 +162,37 @@ npm run data:yield -- path/to/Production_Crops_Livestock_E_Oceania_NOFLAG.csv
 npm run data
 ```
 
-`data:climate` also downloads the Niño-3.4 record. `data:yield` needs FAOSTAT's bulk file ([download](https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Oceania.zip), unzip). `npm run data` rebuilds the index, retrains the guard and the forecast, recompiles the contract, repacks `public/data/` and checks that the live tracker ranks every past checkpoint the way the contract did.
+`data:climate` downloads Copernicus, NASA, CHIRPS and the Niño-3.4 record. `data:yield` needs FAOSTAT's bulk file ([download](https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Oceania.zip), unzip). `npm run data` rebuilds the index, retrains the guard and the forecast, recompiles the contract, repacks `public/data/` and checks that the live tracker ranks every past checkpoint the way the contract did.
+
+**On a public test network** (Ethereum Sepolia by default): put a wallet's private key holding test ETH from a faucet in `.env.testnet` as `DEPLOYER_KEY=0x…` (never commit it; `.gitignore` excludes it), then:
+
+```bash
+node scripts/testnet.mjs deploy
+```
+
+```bash
+node scripts/testnet.mjs seal
+```
+
+`deploy` creates the three oracle wallets (saved to `.env.testnet`) and deploys; `seal` puts this season's forecast and pre-season readings on the record. The results go to `public/data/testnet.json`, which the website shows. To have the oracles post the real readings after each checkpoint, add `DEPLOYER_KEY`, `ERA5_KEY`, `POWER_KEY` and `CHIRPS_KEY` as GitHub repository secrets; `.github/workflows/oracles.yml` runs on 8 February and 8 May (and posts CHIRPS witnesses in March and June).
 
 ## Repository layout
 
 ```
 contracts/DroughtCover.sol    the smart contract (and its compiled ABI)
 scripts/fetch-climate.mjs     daily ERA5 + NASA POWER data → data/climate/
+scripts/fetch-chirps.mjs      daily CHIRPS rainfall via ClimateSERV → data/chirps/
+scripts/fetch-nino.mjs        NOAA CPC Niño-3.4 monthly anomalies → data/nino34-sstoi.txt
 scripts/fetch-yield.mjs       FAOSTAT cane yields → data/yield.json
+scripts/rules.mjs             the payout rules and the two-of-three decision (mirrored in the contract)
 scripts/build-index.mjs       drought index, payouts, backtest, replays → data/index.json
 scripts/train-guard.mjs       trains and evaluates the data guard, scores every real reading → data/guard.json
-scripts/fetch-nino.mjs        NOAA CPC Niño-3.4 monthly anomalies → data/nino34-sstoi.txt
 scripts/build-forecast.mjs    the payout forecast and pricing → data/forecast.json
 scripts/build-now.mjs         the live tracker's baseline → public/data/now.json
 scripts/check-now.mjs         checks the live tracker against every past checkpoint
-scripts/rules.mjs             the payout rules (mirrored in the contract)
-scripts/test-contract.mjs     17 rule checks on a local chain
+scripts/test-contract.mjs     25 rule checks on a local chain
+scripts/testnet.mjs           deploy, seal and report on a public test network
+.github/workflows/oracles.yml the oracles' scheduled posts for the 2026–27 season
 src/guard.js                  the data guard model (shared by training and the browser)
 src/now.js                    the live tracker's ranking (shared by the check and the browser)
 src/evm.js                    in-browser Ethereum (EthereumJS VM)
@@ -172,6 +205,7 @@ src/main.js, index.html       the website
 | :--- | :--- | :--- |
 | Copernicus ERA5 and ERA5-Land, via the [Open-Meteo](https://open-meteo.com/) archive API | Rainfall, soil moisture | Contains modified Copernicus Climate Change Service information 2026. Open-Meteo data: CC BY 4.0 |
 | [NASA POWER](https://power.larc.nasa.gov/) (MERRA-2) | Rainfall, root-zone soil wetness | These data were obtained from the NASA Langley Research Center POWER Project funded through the NASA Earth Science / Applied Science Program |
+| [CHIRPS v2.0](https://www.chc.ucsb.edu/data/chirps), UCSB Climate Hazards Center, via NASA/USAID SERVIR [ClimateSERV](https://climateserv.servirglobal.net/) | Satellite and rain-gauge rainfall | Funk, C. et al. (2015), The climate hazards infrared precipitation with stations, *Scientific Data* 2, 150066 |
 | [NOAA Climate Prediction Center](https://www.cpc.ncep.noaa.gov/data/indices/), monthly Niño-3.4 (OISST v2.1, 1991–2020 normal) and the ENSO Diagnostic Discussion of 8 Oct 2026 | El Niño forecast input; El Niño status | US Government work |
 | [FAOSTAT](https://www.fao.org/faostat/), Crops and livestock products | Fiji sugarcane yields | FAO statistical database terms of use |
 | UN OCHA, *Fiji – Drought OCHA Situation Report No. 2*, 16 Dec 1998 | 1998 timeline and figures | Cited |

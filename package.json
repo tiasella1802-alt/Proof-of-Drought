@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "data:climate": "node scripts/fetch-climate.mjs && node scripts/fetch-nino.mjs",
+    "data:climate": "node scripts/fetch-climate.mjs && node scripts/fetch-chirps.mjs && node scripts/fetch-nino.mjs",
     "data:yield": "node scripts/fetch-yield.mjs",
     "data:index": "node scripts/build-index.mjs",
     "data:guard": "node scripts/train-guard.mjs",
@@ -16,7 +16,8 @@
     "data": "node scripts/build-index.mjs && node scripts/train-guard.mjs && node scripts/build-forecast.mjs && node scripts/compile.mjs && node scripts/build-web-data.mjs && node scripts/build-now.mjs && node scripts/check-now.mjs",
     "compile": "node scripts/compile.mjs",
     "chain": "hardhat node",
-    "test": "node scripts/test-contract.mjs"
+    "test": "node scripts/test-contract.mjs",
+    "testnet": "node scripts/testnet.mjs"
   },
   "dependencies": {
     "@ethereumjs/block": "^10.1.3",
