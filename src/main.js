@@ -5,6 +5,7 @@ import './style.css'
 import { chain, demoKey, addressOf } from './evm.js'
 import { inSeason, seasonAgg, features, score, pct } from './guard.js'
 import { decide } from '../scripts/rules.mjs'
+import { Interface } from 'ethers'
 import { district as trackDistrict, dryness as rankRows, SEASON_START } from './now.js'
 
 maplibregl.setWorkerUrl(workerUrl) // Vite's dependency bundling hides MapLibre's own worker file
@@ -361,7 +362,7 @@ function attack() {
     const g = GUARD.sources[s], seasons = KEYS.map((key) => seasonAgg(DAYS[y][key][s], y))
     seasons[k] = seasonAgg(rows, y)
     const sc = score(features(k, seasons, g.base, rows, y, g.physics[k]), g.model), [rain, soil] = seasons[k]
-    return { score: sc, limit: g.threshold, flagged: sc > g.threshold, dry: (pct(rain, g.base[k].rain) + pct(soil, g.base[k].soil)) / 2 }
+    return { score: sc, limit: g.threshold, flagged: sc > g.threshold, rain, dry: (pct(rain, g.base[k].rain) + pct(soil, g.base[k].soil)) / 2 }
   }
   const real = SEASON[y].final[k]
   const mine = judge(src, fake(DAYS[y][KEYS[k]][src], src))
@@ -431,7 +432,7 @@ $('g-go').onclick = async () => {
       }
       const rej = await gameChain.dc.write(K.insurer, 'reject', [season, 1, G.k])
       if (rej.events.some((e) => e.name === 'PayoutRejected'))
-        r.innerHTML += `<span class="step"><b>Day 3:</b> both guards flagged it, so the insurer may reject it: it downloads both records from Copernicus and NASA, they don't match the seals you posted, and it rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
+        r.innerHTML += `<span class="step"><b>Day 3:</b> both guards flagged it, so the insurer may reject it. It downloads the records from Copernicus and NASA: your Copernicus data says ${Math.round(a.mine.rain)} mm of rain fell, the public archive says ${Math.round(a.real.sources.era5.rain)} mm. That's ${Math.round(a.real.sources.era5.rain - a.mine.rain)} mm apart, nothing like the 0.1 mm here and there that archives sometimes revise. It rejects the payout. You got F$0.</span><span class="tx">Rejected in block #${rej.block}</span>`
     }
     else if (paid.length) r.className = 'result yes', r.innerHTML = `<b>You got ${F(amt)}.</b> Your fake was subtle enough to get past the AI check too, so nothing was held. Anyone who checks the seal against Copernicus and NASA can still prove the data was faked.`
     else r.className = 'result no', r.innerHTML = `<b>Nothing paid.</b> Even with your fake, it wasn't a drought. ${a.tampered ? '' : 'Try moving the slider.'}`
@@ -621,10 +622,42 @@ fetch('/data/testnet.json').then((r) => (r.ok ? r.json() : null)).then((t) => {
   const forecast = t.sealed.filter((x) => x.what === 'forecast'), readings = t.sealed.filter((x) => x.what.startsWith('pre-season'))
   const when = forecast[0]?.at ? new Date(forecast[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
   const posted = t.reports?.length ? ` The oracles have since posted ${t.reports.length} readings for this season.` : ' Come back after 31 January 2027 to see whether it was right.'
+  const old = t.previous?.at(-1)
   $('sealed').hidden = false
   $('sealed').innerHTML = `<b>Sealed on ${when}, before the rain falls.</b> This forecast and ${readings.length} pre-season readings are on ${t.network}, timestamped. Nobody can change them, including us.${posted}` +
-    ` <a href="${t.contract}" target="_blank" rel="noopener">See the contract</a>${forecast[0] ? ` · <a href="${forecast[0].tx}" target="_blank" rel="noopener">the sealed forecast</a>` : ''}`
+    `<span class="links"><a href="${t.contract}" target="_blank" rel="noopener">The contract</a> · <a href="https://repo.sourcify.dev/${t.chainId}/${t.address}" target="_blank" rel="noopener">its verified source code</a>${forecast[0] ? ` · <a href="${forecast[0].tx}" target="_blank" rel="noopener">the sealed forecast</a>` : ''} · <button class="lnk" id="seal-check">Check these seals yourself</button></span>` +
+    (old ? `<small>This replaces a first version from earlier the same day. ${old.reason}. <a href="${old.contract}" target="_blank" rel="noopener">The first version</a> stays on the record.</small>` : '') +
+    '<div class="seal-out" id="seal-out" hidden></div>'
+  $('seal-check').onclick = () => checkSeals(t)
 }).catch(() => {})
+// Recomputes every seal's fingerprint from the inputs published with the site, then reads the same seal from the
+// blockchain itself (not from us) and compares the two.
+async function checkSeals(t) {
+  const out = $('seal-out'), btn = $('seal-check')
+  out.hidden = false
+  out.textContent = 'Reading the blockchain…'
+  btn.disabled = true
+  try {
+    const RPC = { 11155111: 'https://ethereum-sepolia-rpc.publicnode.com', 84532: 'https://sepolia.base.org' }[t.chainId]
+    const rpc = (method, params) => fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }).then((r) => r.json()).then((j) => j.result)
+    const inputs = await get('sealed-inputs.json'), iface = new Interface(ART.abi)
+    let ok = 0, firstTime = null
+    for (const s of t.sealed) {
+      const data = s.what === 'forecast' ? inputs.forecast : inputs.preSeason[s.district]?.[s.what.split(' ')[1]]
+      const mine = await sha(data)
+      const receipt = await rpc('eth_getTransactionReceipt', [s.tx.split('/tx/')[1]])
+      const log = receipt?.logs.map((l) => { try { return iface.parseLog(l) } catch { return null } }).find((e) => e?.name === 'Sealed')
+      if (log && log.args[4] === mine && Number(log.args[3]) === Math.round(s.value * 1000) && receipt.to.toLowerCase() === t.address.toLowerCase()) ok++
+      if (log && !firstTime) firstTime = Number(log.args[6])
+    }
+    const at = firstTime ? new Date(firstTime * 1000).toUTCString().replace(' GMT', ' UTC') : '?'
+    out.className = `seal-out ${ok === t.sealed.length ? 'ok' : 'bad'}`
+    out.innerHTML = ok === t.sealed.length
+      ? `<b>✓ All ${ok} seals match.</b> We recomputed each fingerprint from the forecast and readings published with this site, and read the same seals straight from the blockchain. They were written at ${at}, before the season began, and haven't changed.`
+      : `<b>${ok} of ${t.sealed.length} seals match.</b> Any that don't would show the published data was changed after sealing.`
+  } catch (e) { out.textContent = `Couldn't reach the blockchain just now (${e.message}). Try again in a moment.` }
+  btn.disabled = false
+}
 // Start soon after the page loads (not on scroll), so the cards are filled long before anyone reaches them.
 setTimeout(() => track().catch(() => {}), 1200)
 

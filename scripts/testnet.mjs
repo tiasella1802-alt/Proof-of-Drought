@@ -1,6 +1,7 @@
 // Runs Proof of Drought on a public test network (Ethereum Sepolia by default), so anyone can see it on a block explorer.
 //
-//   node scripts/testnet.mjs deploy          deploys DroughtCover with three oracle wallets and a few demo policies
+//   node scripts/testnet.mjs deploy [reason] deploys DroughtCover with three oracle wallets and a few demo policies
+//                                            (a previous deployment is kept on record as replaced, with the reason)
 //   node scripts/testnet.mjs seal            seals this season's forecast and pre-season readings on the record, timestamped
 //   node scripts/testnet.mjs report <stage>  each oracle posts its record's reading for the 2026–27 season (early | final)
 //
@@ -12,10 +13,11 @@
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { ethers } from 'ethers'
+import solc from 'solc'
 import { DISTRICTS } from './districts.mjs'
 import { district as track, SEASON_START } from '../src/now.js'
 
-const ENV = '.env.testnet', OUT = 'public/data/testnet.json'
+const ENV = '.env.testnet', OUT = 'public/data/testnet.json', INPUTS = 'public/data/sealed-inputs.json'
 if (existsSync(ENV)) for (const line of readFileSync(ENV, 'utf8').split(/\r?\n/)) { const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(\S+)/); if (m && !process.env[m[1]]) process.env[m[1]] = m[2] }
 const RPC = process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'
 const provider = new ethers.JsonRpcProvider(RPC, undefined, { cacheTimeout: -1 })
@@ -33,6 +35,12 @@ const cmd = process.argv[2]
 if (cmd === 'deploy') {
   const insurer = new ethers.Wallet(need('DEPLOYER_KEY'), provider)
   console.log(`${NET.name}: insurer ${insurer.address}, balance ${ethers.formatEther(await provider.getBalance(insurer.address))} ETH`)
+  // A new deployment replaces the old one; the old one stays on record, with why it was replaced.
+  if (state.address) {
+    state.previous = [...(state.previous ?? []), { address: state.address, contract: state.contract, deployed: state.deployed, sealed: state.sealed.length,
+      replaced: new Date().toISOString(), reason: process.argv.slice(3).join(' ') || 'replaced' }]
+    state.sealed = [], state.reports = []
+  }
   const oracles = {}
   for (const k of ['ERA5_KEY', 'POWER_KEY', 'CHIRPS_KEY']) {
     if (!process.env[k]) { process.env[k] = ethers.Wallet.createRandom().privateKey; appendFileSync(ENV, `${k}=${process.env[k]}\n`) }
@@ -43,13 +51,19 @@ if (cmd === 'deploy') {
   const address = await c.getAddress()
   console.log(`DroughtCover at ${address}`)
   // Gas money for each oracle, a small pool, and one demo policy per district (test ETH stands in for Fiji dollars).
-  for (const w of Object.values(oracles)) await (await insurer.sendTransaction({ to: w.address, value: ethers.parseEther('0.004') })).wait()
+  for (const w of Object.values(oracles)) if ((await provider.getBalance(w.address)) < ethers.parseEther('0.002')) await (await insurer.sendTransaction({ to: w.address, value: ethers.parseEther('0.004') })).wait()
   await (await insurer.sendTransaction({ to: address, value: ethers.parseEther('0.002') })).wait()
   for (let d = 0; d < DISTRICTS.length; d++) await (await c.issue(ethers.Wallet.createRandom().address, d, ethers.parseEther('0.0002'))).wait()
   Object.assign(state, { network: NET.name, chainId: Number(chainId), explorer: NET.explorer, address, contract: NET.explorer ? `${NET.explorer}/address/${address}` : address,
     deployed: new Date().toISOString(), deployTx: tx(c.deploymentTransaction().hash),
-    oracles: { era5: oracles.ERA5_KEY.address, power: oracles.POWER_KEY.address, chirps: oracles.CHIRPS_KEY.address } })
+    oracles: { era5: oracles.ERA5_KEY.address, power: oracles.POWER_KEY.address, chirps: oracles.CHIRPS_KEY.address },
+    constructorArgs: ethers.AbiCoder.defaultAbiCoder().encode(['address', 'address', 'address'], [oracles.ERA5_KEY.address, oracles.POWER_KEY.address, oracles.CHIRPS_KEY.address]).slice(2),
+    compiler: `v${solc.version().replace('.Emscripten.clang', '')}` })
   save()
+  // What Etherscan's "Verify and Publish" (Solidity, Standard-Json-Input) needs: the exact compiler input.
+  writeFileSync('contracts/DroughtCover.standard-input.json', JSON.stringify({ language: 'Solidity', sources: { 'DroughtCover.sol': { content: readFileSync('contracts/DroughtCover.sol', 'utf8') } },
+    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true, evmVersion: 'cancun', outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } } }, null, 1))
+  console.log(`Etherscan verification: contracts/DroughtCover.standard-input.json, compiler ${state.compiler}, constructor arguments:\n${state.constructorArgs}`)
   console.log(`saved ${OUT}. Oracle keys are in ${ENV} (keep it private).`)
 } else if (cmd === 'seal') {
   if (!state.address) throw new Error('deploy first')
@@ -58,8 +72,10 @@ if (cmd === 'deploy') {
   const c = new ethers.Contract(state.address, ART.abi, provider)
   const FC = JSON.parse(readFileSync('data/forecast.json', 'utf8')), NOW = JSON.parse(readFileSync('public/data/now.json', 'utf8'))
   const what = (s) => ethers.encodeBytes32String(s)
+  const inputs = { forecast: null, preSeason: {} }
   // The forecast: the chance each district pays this season, and the fingerprint of the model's inputs and weights.
-  const model = sha({ weights: FC.weights, cap: FC.cap, nino: FC.now.nino, months: FC.now.months })
+  const modelInputs = { weights: FC.weights, cap: FC.cap, nino: FC.now.nino, months: FC.now.months }, model = sha(modelInputs)
+  inputs.forecast = modelInputs
   for (let d = 0; d < DISTRICTS.length; d++) {
     const r = await (await c.connect(insurer).seal(what('forecast'), FC.now.season, d, pm(FC.now.districts[d].chance), model)).wait()
     state.sealed.push({ what: 'forecast', season: FC.now.season, district: DISTRICTS[d].key, value: FC.now.districts[d].chance, dataHash: model, tx: tx(r.hash), at: new Date().toISOString() })
@@ -70,12 +86,14 @@ if (cmd === 'deploy') {
     const n = NOW.districts[DISTRICTS[d].key], got = track({ era5: n.era5.snapshot, power: n.power.snapshot }, n, 0)
     for (const src of ['era5', 'power']) {
       const rows = n[src].snapshot.slice(0, got.to)
+      ;(inputs.preSeason[DISTRICTS[d].key] ??= {})[src] = rows
       const r = await (await c.connect(W[src]).seal(what(`pre-season ${src}`), NOW.season, d, pm(got[src].dryness), sha(rows))).wait()
       state.sealed.push({ what: `pre-season ${src}`, season: NOW.season, district: DISTRICTS[d].key, value: +got[src].dryness.toFixed(3), upTo: rows.at(-1)[0], dataHash: sha(rows), tx: tx(r.hash), at: new Date().toISOString() })
       console.log(`pre-season ${src} ${DISTRICTS[d].name}: ${pm(got[src].dryness)}  ${r.hash}`)
     }
   }
   save()
+  writeFileSync(INPUTS, JSON.stringify(inputs))
 } else if (cmd === 'report') {
   const stage = process.argv[3]
   if (!['early', 'final'].includes(stage) || !state.address) throw new Error('usage: report early|final (after deploy)')

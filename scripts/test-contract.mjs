@@ -124,7 +124,7 @@ await check('a wallet that refuses payment cannot block the district; its money 
   if ((await bal(normal)) !== eth(1)) throw new Error('normal farmer not paid')
   if (!events(rc, 'Held').length || (await c.owed(R)) !== eth(1)) throw new Error('refused payment not held')
 })
-await check('one flag: a payout is held, the insurer cannot reject it, and it is paid after the challenge period', async () => {
+await check('one flag: a payout is held until the challenge period is over and CHIRPS is in; the insurer cannot reject it; then it is paid', async () => {
   const f = await newFarmer(5)
   await send(as(era5).report(1998, FINAL, 5, 20, FLAGGED, h('j')))
   const rc = await send(as(power).report(1998, FINAL, 5, 30, OK, h('k')))
@@ -133,16 +133,22 @@ await check('one flag: a payout is held, the insurer cannot reject it, and it is
   await reverts(as(stranger).reject(1998, FINAL, 5), 'NotInsurer')
   await reverts(c.reject(1998, FINAL, 5), 'NeedsTwoSignals')
   await later(14)
+  await reverts(c.release(1998, FINAL, 5), 'AwaitingChirps') // the satellite record isn't in yet
+  await send(as(chirps).report(1998, FINAL, 5, 40, 0, h('k2'))) // it agrees: a real drought
+  await reverts(c.reject(1998, FINAL, 5), 'NeedsTwoSignals')
+  await later(3)
   await reverts(c.reject(1998, FINAL, 5), 'ChallengeClosed')
   await send(as(stranger).release(1998, FINAL, 5))
   if ((await bal(f)) !== eth(1)) throw new Error('not paid after release')
   await reverts(c.release(1998, FINAL, 5), 'NothingHeld')
 })
-await check('one flag plus CHIRPS disagreeing during the hold: the insurer can reject', async () => {
+await check('one flag plus CHIRPS disagreeing, even when CHIRPS arrives after the 14 days: the insurer can reject', async () => {
   const f = await newFarmer(7)
   await send(as(era5).report(2011, FINAL, 7, 30, FLAGGED, h('l')))
   await send(as(power).report(2011, FINAL, 7, 60, OK, h('m')))
   await reverts(c.reject(2011, FINAL, 7), 'NeedsTwoSignals')
+  await later(20) // CHIRPS is published weeks after the month ends
+  await reverts(c.release(2011, FINAL, 7), 'AwaitingChirps')
   const rc = await send(as(chirps).report(2011, FINAL, 7, 820, 0, h('n'))) // the satellite record saw a wet season
   if (!events(rc, 'Witness').length || events(rc, 'Witness')[0].args.agrees) throw new Error('no dissent logged')
   if (!events(await send(c.reject(2011, FINAL, 7)), 'PayoutRejected').length) throw new Error('not rejected')
@@ -170,6 +176,34 @@ await check('sponsor money is logged against the district and season it paid for
   const used = events(rc, 'SponsorFundsUsed')
   if (!used.length || used[0].args.amount !== eth(0.5) || Number(used[0].args.district) !== LAUTOKA || Number(used[0].args.season) !== 2020) throw new Error('sponsor use not traced')
   if ((await c.sponsored(LAUTOKA)) !== 0n || (await bal(g)) !== eth(1) || !f) throw new Error('accounting off')
+})
+await check('if CHIRPS never arrives, a held payout is released after the longest wait, not blocked forever', async () => {
+  const f = await newFarmer(3)
+  await send(as(era5).report(2015, FINAL, 3, 30, FLAGGED, h('u')))
+  await send(as(power).report(2015, FINAL, 3, 40, OK, h('v')))
+  await later(14 + 30)
+  await reverts(c.release(2015, FINAL, 3), 'AwaitingChirps')
+  await later(31)
+  await send(as(stranger).release(2015, FINAL, 3))
+  if ((await bal(f)) !== eth(1)) throw new Error('not paid')
+})
+await check('sponsor money is ring-fenced: another district cannot spend it', async () => {
+  // a fresh contract with a small pool, so the sponsor money is most of it
+  const k = await new ethers.ContractFactory(DroughtCover.abi, DroughtCover.bytecode, insurer).deploy(era5.address, power.address, chirps.address)
+  await k.waitForDeployment()
+  const K = (s) => k.connect(s), ka = await k.getAddress()
+  await send(insurer.sendTransaction({ to: ka, value: eth(1) }))      // the insurer's own pool: F$1 equivalent
+  await send(K(stranger).sponsor(BA, { value: eth(5) }))              // a donor protects Ba
+  const other = ethers.Wallet.createRandom().address, ba = ethers.Wallet.createRandom().address
+  await send(k.issue(other, LAUTOKA, eth(3)))
+  await send(k.issue(ba, BA, eth(5)))
+  await send(K(era5).report(1998, FINAL, LAUTOKA, 10, OK, h('w')))
+  try { await send(K(power).report(1998, FINAL, LAUTOKA, 10, OK, h('x'))); throw new Error('Lautoka spent Ba\'s sponsor money') }
+  catch (e) { if (!/PoolTooSmall|reverted|revert/i.test(e.shortMessage || e.message) || /spent/.test(e.message)) throw e }
+  await send(K(era5).report(1998, FINAL, BA, 10, OK, h('y')))
+  const rc = await send(K(power).report(1998, FINAL, BA, 10, OK, h('z')))
+  if ((await bal(ba)) !== eth(5) || (await k.totalSponsored()) !== 0n) throw new Error('Ba not paid from its sponsor money')
+  if (!rc.logs.length) throw new Error('no logs')
 })
 await check('a forecast can be sealed on the record, timestamped, only by the insurer or an oracle', async () => {
   await reverts(as(stranger).seal(ethers.encodeBytes32String('forecast'), 2027, BA, 610, h('model')), 'NotAllowed')

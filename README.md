@@ -24,7 +24,7 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 6. **Public verification.** Anyone can re-download the data from Copernicus, NASA and the CHIRPS archive and check it against the fingerprint on the ledger. The website does this live, in the browser.
 7. **A live tracker for the 2026–27 season.** A strong El Niño is under way (NOAA's Niño-3.4 index was +2.8 °C in September 2026, against +1.8 °C in September 1997). The site downloads today's readings for every district and ranks them exactly as the contract will, with a countdown to each checkpoint.
 8. **A forecast, a fair price and sponsors.** A model trained on 44 seasons gives the chance a district pays this season; the same model sets a premium that can't be gamed, and sponsors can pay the extra in risky years so farmers never pay more than the normal-year price.
-9. **Sealed before the rain falls.** `scripts/testnet.mjs` deploys the contract to a public test network and seals this season's forecast and pre-season readings on it, timestamped. A scheduled job (`.github/workflows/oracles.yml`) has the three oracles post the real readings after 31 January and 30 April 2027.
+9. **Sealed before the rain falls.** The contract is live on the public Ethereum Sepolia test network, and this season's forecast and pre-season readings were sealed on it on 15 October 2026, timestamped. A scheduled job (`.github/workflows/oracles.yml`) has the three oracles post the real readings after 31 January and 30 April 2027. See [Live on Sepolia](#live-on-sepolia).
 
 ### The rules (in `scripts/rules.mjs` and `contracts/DroughtCover.sol`, tested to match)
 
@@ -35,7 +35,7 @@ Parametric insurance, which pays on a measured trigger instead of an assessed cl
 | Final, end of April | District in its driest 20% | 50% of cover |
 | Any | Copernicus and NASA within 25 percentile points | They decide; CHIRPS is logged as a witness when it arrives |
 | Any | Copernicus and NASA further apart | Wait for CHIRPS; the pair that agrees decides. If no two agree, nothing pays and the disagreement is logged |
-| Any | A deciding reading flagged by the data guard, and a payout is due | Payout held for 14 days; after it, anyone can release it. The insurer can reject it during the 14 days only with two signals: both deciding readings flagged, or one flagged and CHIRPS disagreeing |
+| Any | A deciding reading flagged by the data guard, and a payout is due | Payout held for at least 14 days and until CHIRPS has reported (at most 60 days more); then anyone can release it. While it's held, the insurer can reject it only with two signals: both deciding readings flagged, or one flagged and CHIRPS disagreeing |
 
 ## Results
 
@@ -75,7 +75,7 @@ Trained on 1991–2020; features: rainfall-vs-soil percentile gap, dryness vs th
 
 **Who could stop a real payout?**
 - One record faked or broken: it is outvoted by the other two.
-- One oracle, or the insurer plus one colluding oracle posting a false flag: they can **delay** a payout by 14 days but can't cancel it, because rejection needs two signals.
+- One oracle, or the insurer plus one colluding oracle posting a false flag: they can **delay** a payout (until the 14 days are up and CHIRPS is in) but can't cancel it, because rejection needs two signals.
 - Faking both Copernicus and NASA: the guard flags it (in the website's game, every fake big enough to pay is held and then rejected), CHIRPS disagrees on the record, and the data no longer matches the public archives.
 - The guard runs inside the oracles, so it protects against faked *data*; stolen oracle *keys* could post a false verdict, which is what the public seals and the independent third record are for. A real scheme would have independent organisations run the three oracles.
 
@@ -97,7 +97,7 @@ If everyone can see El Niño coming, people will buy cover only in El Niño year
 | One flat price (10.7% of cover a year) | **3.13** (the pool goes broke) |
 | Priced by the forecast before each season | **1.06** |
 
-This season's forecast price is about F$371 per F$1,000 of cover before costs, against F$107 in a normal year. **Sponsors** (a government or donor) can pay into a district's pool through `sponsor(district)`; the contract uses sponsor money first and logs every sponsor dollar against the district and season it paid for. Run over 44 seasons at Fiji's scale with a 20% margin, sponsors would have paid F$16.9 million, in the 15 riskiest years only, and no farmer would ever have paid more than F$129 a year for F$1,000 of cover. A government could fund this from climate finance such as the UN Fund for responding to Loss and Damage, whose start-up phase has US$250 million for 2025–26.
+This season's forecast price is about F$371 per F$1,000 of cover before costs, against F$107 in a normal year. **Sponsors** (a government or donor) can pay into a district's pool through `sponsor(district)`. Sponsor money is ring-fenced: only that district's payouts can use it. The contract uses it first and logs every sponsor dollar against the district and season it paid for. Run over 44 seasons at Fiji's scale with a 20% margin, sponsors would have paid F$16.9 million, in the 15 riskiest years only, and no farmer would ever have paid more than F$129 a year for F$1,000 of cover. A government could fund this from climate finance such as the UN Fund for responding to Loss and Damage, whose start-up phase has US$250 million for 2025–26.
 
 ### At Fiji's scale
 
@@ -105,7 +105,25 @@ Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread ev
 
 ### Contract
 
-`npm test` runs 25 checks against a fresh deployment, including: only the insurer issues policies; only the three oracles report; one oracle alone can't trigger a payout; early + final never exceeds 100%; when Copernicus and NASA disagree the checkpoint waits for CHIRPS; a faked record is outvoted; a broken record can't block an honest payout; no two records agreeing pays nothing; the pool must cover every payout before anyone is paid; a wallet that refuses payment can't block its district; a held payout needs two signals to be rejected and is released after its challenge period; sponsor money is traced to its district and season; forecasts are sealed with their timestamp; and on 40 random three-record seasons the contract decides exactly as `scripts/rules.mjs`.
+`npm test` runs 27 checks against a fresh deployment, including: only the insurer issues policies; only the three oracles report; one oracle alone can't trigger a payout; early + final never exceeds 100%; when Copernicus and NASA disagree the checkpoint waits for CHIRPS; a faked record is outvoted; a broken record can't block an honest payout; no two records agreeing pays nothing; the pool must cover every payout before anyone is paid; a wallet that refuses payment can't block its district; a held payout waits for CHIRPS, needs two signals to be rejected, and is released after the longest wait even if CHIRPS never arrives; sponsor money is ring-fenced to its district and traced to the season it paid for; forecasts are sealed with their timestamp; and on 40 random three-record seasons the contract decides exactly as `scripts/rules.mjs`.
+
+## Live on Sepolia
+
+| | |
+| :--- | :--- |
+| Contract | [`0x06420f30B300AC756a083f0b327CE3389B0a3965`](https://sepolia.etherscan.io/address/0x06420f30B300AC756a083f0b327CE3389B0a3965) on Ethereum Sepolia (test network) |
+| Verified source | [Sourcify, exact match](https://repo.sourcify.dev/11155111/0x06420f30B300AC756a083f0b327CE3389B0a3965) (creation and runtime bytecode) |
+| Sealed | 24 records on 15 October 2026: the 2026–27 forecast for each district and 16 pre-season readings, each with the SHA-256 of its inputs ([the forecast](https://sepolia.etherscan.io/tx/0xe370bc55bebfde6793e9fc52f3924786859f6365e0726f0d4af7158710894086)) |
+| Oracles | ERA5 `0xDC33B10C662805B0082f7b9cbf10230Db7a513af`, NASA `0xE49ad0777Ee477bAB964980A9C0F62595E18Da7a`, CHIRPS `0x35eb90625a9885730a960C2dfb882eeE890308aE` |
+| Replaced | A first version, [`0x8Ad7c24FF13d6879026731AF810c94E195E5AD93`](https://sepolia.etherscan.io/address/0x8Ad7c24FF13d6879026731AF810c94E195E5AD93), was deployed and sealed earlier the same day. It was replaced before the season because sponsor money wasn't ring-fenced (another district's payout could spend it) and a held payout didn't wait for CHIRPS. It stays on the record. |
+
+Anyone can check the seals: the website's "Check these seals yourself" button recomputes each fingerprint from `public/data/sealed-inputs.json` and compares it with the seal read straight from the blockchain.
+
+To verify on Etherscan as well: open the contract → Contract → Verify and Publish → Solidity (Standard-Json-Input), compiler `v0.8.37+commit.f401782d`, licence MIT, upload `contracts/DroughtCover.standard-input.json`, and constructor arguments:
+
+```
+000000000000000000000000dc33b10c662805b0082f7b9cbf10230db7a513af000000000000000000000000e49ad0777ee477bab964980a9c0f62595e18da7a00000000000000000000000035eb90625a9885730a960c2dfb882eee890308ae
+```
 
 ## From rain to phone
 
@@ -124,6 +142,7 @@ Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread ev
 - *Basis risk.* Yields are published only for Fiji as a whole, so district payouts can't be checked against district harvests, and 1990 and 2005 paid in a dry season the cane survived. A next step is a vegetation-health (NDVI) check of the cane at the final checkpoint.
 - *Nobody in Fiji has reviewed it.* Not farmers, the Sugar Cane Growers Fund, the Fiji Meteorological Service or an insurer.
 - *Independent oracles.* The project runs all three oracle keys; a real scheme needs independent operators.
+- *A disagreement slows the payout.* If Copernicus and NASA disagree (about 1 in 9 past checkpoints), the decision waits for CHIRPS, published about three weeks after each month. CHIRPS's preliminary version, out within days, could cut that.
 - *The AI is small on purpose*: an anomaly check and a one-input forecast that is only a little better than the average.
 - *Payout to mobile money* is a proposal. Alerts are in English only (Fiji Hindi and iTaukei versions need checking by native speakers).
 
@@ -174,7 +193,7 @@ node scripts/testnet.mjs deploy
 node scripts/testnet.mjs seal
 ```
 
-`deploy` creates the three oracle wallets (saved to `.env.testnet`) and deploys; `seal` puts this season's forecast and pre-season readings on the record. The results go to `public/data/testnet.json`, which the website shows. To have the oracles post the real readings after each checkpoint, add `DEPLOYER_KEY`, `ERA5_KEY`, `POWER_KEY` and `CHIRPS_KEY` as GitHub repository secrets; `.github/workflows/oracles.yml` runs on 8 February and 8 May (and posts CHIRPS witnesses in March and June).
+`deploy` creates the three oracle wallets (saved to `.env.testnet`) and deploys; `seal` puts this season's forecast and pre-season readings on the record. The results go to `public/data/testnet.json`, which the website shows. To have the oracles post the real readings after each checkpoint, add `DEPLOYER_KEY`, `ERA5_KEY`, `POWER_KEY` and `CHIRPS_KEY` as GitHub repository secrets; `.github/workflows/oracles.yml` runs on 8 February and 8 May (and posts CHIRPS witnesses in March and June). A monthly heartbeat commit keeps GitHub from switching the schedule off after 60 quiet days.
 
 ## Repository layout
 
@@ -190,7 +209,7 @@ scripts/train-guard.mjs       trains and evaluates the data guard, scores every 
 scripts/build-forecast.mjs    the payout forecast and pricing → data/forecast.json
 scripts/build-now.mjs         the live tracker's baseline → public/data/now.json
 scripts/check-now.mjs         checks the live tracker against every past checkpoint
-scripts/test-contract.mjs     25 rule checks on a local chain
+scripts/test-contract.mjs     27 rule checks on a local chain
 scripts/testnet.mjs           deploy, seal and report on a public test network
 .github/workflows/oracles.yml the oracles' scheduled posts for the 2026–27 season
 src/guard.js                  the data guard model (shared by training and the browser)

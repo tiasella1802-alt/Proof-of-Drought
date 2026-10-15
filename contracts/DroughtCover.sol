@@ -20,12 +20,14 @@ pragma solidity ^0.8.24;
 ///
 /// Each oracle also posts its data guard's verdict: the AI anomaly score as a share of the flag threshold (per mille,
 /// above 1000 = the data doesn't look like real weather; CHIRPS posts 0, it has no guard model). If a deciding reading
-/// is flagged, a payout that is due is held for CHALLENGE_PERIOD; after it, anyone can release it. The insurer can
-/// reject it during the period only with two signals: both deciding readings flagged, or one flagged and CHIRPS
-/// disagreeing. One oracle alone (or colluding with the insurer) can delay a real payout, never cancel it.
+/// is flagged, a payout that is due is held: for at least CHALLENGE_PERIOD, and until CHIRPS has reported (at most
+/// CHIRPS_WAIT), so the independent satellite record is in before any money moves. Then anyone can release it. While
+/// it is held, the insurer can reject it only with two signals: both deciding readings flagged, or one flagged and
+/// CHIRPS disagreeing. One oracle alone (or colluding with the insurer) can delay a real payout, never cancel it.
 ///
-/// Sponsors (a government, a donor) can pay into a district's pool; every sponsor dollar used is logged against the
-/// district and season it paid for. Anyone with a role can seal a forecast or reading on the record before the season.
+/// Sponsors (a government, a donor) can pay into a district's pool. Sponsor money is ring-fenced: only that district's
+/// payouts can use it, and every sponsor dollar used is logged against the district and season it paid for.
+/// Anyone with a role can seal a forecast or reading on the record before the season.
 contract DroughtCover {
     enum Stage { EARLY, FINAL }
     uint8 public constant ERA5 = 0;
@@ -41,6 +43,8 @@ contract DroughtCover {
     uint16 public constant MODERATE_PAY = 500;
     uint16 public constant FLAG_AT = 1000;
     uint64 public constant CHALLENGE_PERIOD = 14 days;
+    uint64 public constant CHIRPS_WAIT = 60 days;   // longest a held payout waits for CHIRPS after the challenge period
+    uint64 public constant CHIRPS_GRACE = 3 days;   // time the insurer gets to act on a CHIRPS reading that arrives late
 
     struct Policy { address payable farmer; uint8 district; uint128 cover; }
     struct Report { uint16 dryness; uint16 guard; bytes32 dataHash; bool posted; }
@@ -59,8 +63,9 @@ contract DroughtCover {
     mapping(address => uint256) public owed;
     // season => stage => district => payout waiting out its challenge period
     mapping(uint16 => mapping(Stage => mapping(uint8 => Hold))) public holds;
-    // sponsor money set aside for each district, not yet used
+    // sponsor money set aside for each district, not yet used, and the total of it (which other districts can't touch)
     mapping(uint8 => uint256) public sponsored;
+    uint256 public totalSponsored;
 
     event PolicyIssued(uint256 indexed id, address indexed farmer, uint8 indexed district, uint128 cover);
     event Reported(uint16 indexed season, Stage stage, uint8 indexed district, uint8 source, uint16 dryness, uint16 guard, bytes32 dataHash);
@@ -87,6 +92,7 @@ contract DroughtCover {
     error NothingHeld();
     error ChallengeOpen(uint64 releaseAt);
     error ChallengeClosed();
+    error AwaitingChirps(uint64 until);
     error NeedsTwoSignals();
 
     constructor(address era5Oracle, address powerOracle, address chirpsOracle) {
@@ -108,6 +114,7 @@ contract DroughtCover {
     /// @notice A sponsor pays into one district's pool, for example to keep El Niño-year premiums affordable.
     function sponsor(uint8 district) external payable {
         sponsored[district] += msg.value;
+        totalSponsored += msg.value;
         emit Sponsored(msg.sender, district, msg.value);
     }
 
@@ -175,26 +182,31 @@ contract DroughtCover {
         bool agrees = _gap(chirps, index) <= MAX_GAP;
         emit Witness(season, stage, district, chirps, agrees);
         Hold storage h = holds[season][stage][district];
-        if (!agrees && h.share > 0 && block.timestamp < h.releaseAt) h.signals += 1;
+        if (h.share == 0) return;
+        if (!agrees) h.signals += 1;
+        uint64 grace = uint64(block.timestamp) + CHIRPS_GRACE;
+        if (h.releaseAt < grace) h.releaseAt = grace;
     }
 
-    /// @notice After the challenge period, anyone can release a held payout.
+    /// @notice Once the challenge period is over and CHIRPS has reported (or CHIRPS_WAIT has passed), anyone can release a held payout.
     function release(uint16 season, Stage stage, uint8 district) external {
         Hold memory h = holds[season][stage][district];
         if (h.share == 0) revert NothingHeld();
         if (block.timestamp < h.releaseAt) revert ChallengeOpen(h.releaseAt);
+        if (!reports[season][stage][district][CHIRPS].posted && block.timestamp < h.releaseAt + CHIRPS_WAIT) revert AwaitingChirps(h.releaseAt + CHIRPS_WAIT);
         delete holds[season][stage][district];
         emit PayoutReleased(season, stage, district);
         _pay(season, district, h.share);
     }
 
-    /// @notice During the challenge period, the insurer can reject a held payout if there are two signals against it:
-    /// both deciding readings flagged by the data guard, or one flagged and CHIRPS disagreeing. It's logged publicly.
+    /// @notice While a payout is held, the insurer can reject it if there are two signals against it: both deciding
+    /// readings flagged by the data guard, or one flagged and CHIRPS disagreeing. It's logged publicly.
     function reject(uint16 season, Stage stage, uint8 district) external {
         if (msg.sender != insurer) revert NotInsurer();
         Hold memory h = holds[season][stage][district];
         if (h.share == 0) revert NothingHeld();
-        if (block.timestamp >= h.releaseAt) revert ChallengeClosed();
+        bool chirpsIn = reports[season][stage][district][CHIRPS].posted;
+        if (block.timestamp >= h.releaseAt && (chirpsIn || block.timestamp >= h.releaseAt + CHIRPS_WAIT)) revert ChallengeClosed();
         if (h.signals < 2) revert NeedsTwoSignals();
         delete holds[season][stage][district];
         emit PayoutRejected(season, stage, district);
@@ -212,11 +224,14 @@ contract DroughtCover {
                 total += amounts[i];
             }
         }
-        if (total > address(this).balance) revert PoolTooSmall(total, address(this).balance);
+        // What this district may use: the unsponsored pool plus its own sponsor money (never another district's).
+        uint256 available = address(this).balance - totalSponsored + sponsored[district];
+        if (total > available) revert PoolTooSmall(total, available);
         // Sponsor money for this district is used first, and logged against this district and season.
         uint256 fromSponsors = total < sponsored[district] ? total : sponsored[district];
         if (fromSponsors > 0) {
             sponsored[district] -= fromSponsors;
+            totalSponsored -= fromSponsors;
             emit SponsorFundsUsed(season, district, fromSponsors);
         }
         for (uint256 i; i < ids.length; i++) {
