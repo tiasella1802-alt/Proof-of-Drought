@@ -20,6 +20,8 @@ import { district as track, SEASON_START } from '../src/now.js'
 
 const ENV = '.env.testnet', OUT = 'public/data/testnet.json', INPUTS = 'public/data/sealed-inputs.json'
 if (existsSync(ENV)) for (const line of readFileSync(ENV, 'utf8').split(/\r?\n/)) { const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(\S+)/); if (m && !process.env[m[1]]) process.env[m[1]] = m[2] }
+// Keys and settings never contain spaces, so ignore any picked up when pasting them into GitHub secrets.
+for (const k of ['DEPLOYER_KEY', 'ERA5_KEY', 'POWER_KEY', 'CHIRPS_KEY', 'RPC_URL']) if (process.env[k] != null) process.env[k] = process.env[k].trim()
 const RPC = process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'
 const provider = new ethers.JsonRpcProvider(RPC, undefined, { cacheTimeout: -1 })
 const { chainId } = await provider.getNetwork()
