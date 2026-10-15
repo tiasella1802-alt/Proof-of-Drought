@@ -1,0 +1,249 @@
+{
+ "sealed": [
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "lautoka",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0x5adf60e278b7755ee758b709c0586816960700303cd586b1601a71383898d023",
+   "at": "2026-10-15T09:07:14.591Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "nadi",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0xcc6a56da03c90ff396ee4d5d0a7f396f1ff2fb7ff3fd8a6b08aac30a7ed7d5f8",
+   "at": "2026-10-15T09:07:24.996Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "ba",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0x476ea52f453874bb88559210f9aae212da55fdd956e744ec487f455bb17b2e92",
+   "at": "2026-10-15T09:07:40.958Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "tavua",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0x321496749668efee5ab06acb792c7202ba13610c5025ce5abf3d0eccb85f55ed",
+   "at": "2026-10-15T09:07:52.132Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "rakiraki",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0xe6ea34506b1ad9872e09f83aa3f11372f6b9155522637f6db1af1b0a9850f837",
+   "at": "2026-10-15T09:08:02.903Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "sigatoka",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0x14aee96df887b85fa840ef87b21635319893f8845f7f5aacbdfdfe3c9fe42895",
+   "at": "2026-10-15T09:08:17.538Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "labasa",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0xe8dafd0fe63a8337af74d891f0005028e22c25b4970966424a1d6ab00b9d1194",
+   "at": "2026-10-15T09:08:28.218Z"
+  },
+  {
+   "what": "forecast",
+   "season": 2027,
+   "district": "seaqaqa",
+   "value": 0.601,
+   "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
+   "tx": "https://sepolia.etherscan.io/tx/0x9c7ebca557fd47450867c04c99cac39335a80eed63d7d06b83784357e16143ff",
+   "at": "2026-10-15T09:08:38.442Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "lautoka",
+   "value": 0.267,
+   "upTo": "2026-10-04",
+   "dataHash": "0x9f887355cc3cc39789f8328d6588241c8d1b06422c067288134930a9f81af533",
+   "tx": "https://sepolia.etherscan.io/tx/0x90fea74363b6e4bb04735ca736f4a552345c8fc57090c0d311a1972e7537c693",
+   "at": "2026-10-15T09:08:48.697Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "lautoka",
+   "value": 0.117,
+   "upTo": "2026-10-04",
+   "dataHash": "0xc7aa58606be4c77df36e681e027b64485851c69208d7418528bd54478c446bef",
+   "tx": "https://sepolia.etherscan.io/tx/0x1b9635c934658ce801e06b562a7058478f279c27677559ab235cf92a341ff775",
+   "at": "2026-10-15T09:09:03.680Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "nadi",
+   "value": 0.217,
+   "upTo": "2026-10-04",
+   "dataHash": "0x28cb5305a223d094101e9a741f428ce71f40d7ee6567e5cd965a4b279d25ea76",
+   "tx": "https://sepolia.etherscan.io/tx/0x6d1e27d315f76fad4f02a6cc87589254ae7c5822012492b85c068c584aaa8723",
+   "at": "2026-10-15T09:09:14.032Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "nadi",
+   "value": 0.3,
+   "upTo": "2026-10-04",
+   "dataHash": "0x31c3334e9f78ab8e3564e2f30a96390f36bb428ce2a576e4f8e247f07c048dc9",
+   "tx": "https://sepolia.etherscan.io/tx/0x9ac1b9a835dd038956b952e7ee5be7b1cc96f29779edc4fbe72800ae04266e0c",
+   "at": "2026-10-15T09:09:28.887Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "ba",
+   "value": 0.233,
+   "upTo": "2026-10-04",
+   "dataHash": "0x3365ae83da573c6ee3b4bef328bd4f26589d29bf3ca7422203547b17d8747df2",
+   "tx": "https://sepolia.etherscan.io/tx/0x030cf188bd6c724019385e3957c105f266552e9cc80e23750432d54ecff850d2",
+   "at": "2026-10-15T09:09:39.543Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "ba",
+   "value": 0.117,
+   "upTo": "2026-10-04",
+   "dataHash": "0xc7aa58606be4c77df36e681e027b64485851c69208d7418528bd54478c446bef",
+   "tx": "https://sepolia.etherscan.io/tx/0x8fbafde332e6292ba07713f0c7fca83ccbd4339fe20b255fa6719012a0648419",
+   "at": "2026-10-15T09:09:49.934Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "tavua",
+   "value": 0.267,
+   "upTo": "2026-10-04",
+   "dataHash": "0x84769fedfd79de23daae914fd1becb376edc021b4663e3773d06b347bf3a3d39",
+   "tx": "https://sepolia.etherscan.io/tx/0x8f6a5b181bda7fcea39bab8f257612eeaa64645ff0c5307086c84901197e610e",
+   "at": "2026-10-15T09:10:04.485Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "tavua",
+   "value": 0.117,
+   "upTo": "2026-10-04",
+   "dataHash": "0x810497486cf47622ba646d9d6ff1bc6af91e2f28f09fafd54ec97b7eb981674d",
+   "tx": "https://sepolia.etherscan.io/tx/0xfb999c046b939a019b616a7b6d7acb9fd52c866358fe6148feaa82d11d1a858f",
+   "at": "2026-10-15T09:10:15.471Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "rakiraki",
+   "value": 0.25,
+   "upTo": "2026-10-04",
+   "dataHash": "0x6a10b61be3fdeba820eae406758209f22143c54c6e2feff5f43719652bf1fc08",
+   "tx": "https://sepolia.etherscan.io/tx/0x8edfa3fdac2a412f6008aa41c69cc9c42e1644cbb297a395da3afdb6a09eb43d",
+   "at": "2026-10-15T09:10:25.758Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "rakiraki",
+   "value": 0.117,
+   "upTo": "2026-10-04",
+   "dataHash": "0x810497486cf47622ba646d9d6ff1bc6af91e2f28f09fafd54ec97b7eb981674d",
+   "tx": "https://sepolia.etherscan.io/tx/0xded290a66f0f6f5dea5085dfc15a8514b3046ffa53c4691df85a81e7be95205b",
+   "at": "2026-10-15T09:10:40.155Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "sigatoka",
+   "value": 0.25,
+   "upTo": "2026-10-04",
+   "dataHash": "0x95eb69f6f17e680b6467d9b7408b56ba5d768f0029fcc9b54f516ba03ca75cdf",
+   "tx": "https://sepolia.etherscan.io/tx/0x0a0db010b7fc7c19b7e2187275c9d81d19e833dd7a4bebda401f8c7e0aaf937e",
+   "at": "2026-10-15T09:10:50.607Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "sigatoka",
+   "value": 0.3,
+   "upTo": "2026-10-04",
+   "dataHash": "0x31c3334e9f78ab8e3564e2f30a96390f36bb428ce2a576e4f8e247f07c048dc9",
+   "tx": "https://sepolia.etherscan.io/tx/0x6194c4fa1b136752dbc1f7d72824af4e3f0ca91ada6b14e526d2a2544add58c7",
+   "at": "2026-10-15T09:11:01.023Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "labasa",
+   "value": 0.083,
+   "upTo": "2026-10-04",
+   "dataHash": "0xf34e1c47b1ebd9f230156dd68003da5d0ecf1627c49ea3128bb6f823cccad8c2",
+   "tx": "https://sepolia.etherscan.io/tx/0x9f1943d7f930bea7dabc0f82305a25fdc0430294c99ace7f39ae79a5ba863e46",
+   "at": "2026-10-15T09:11:23.895Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "labasa",
+   "value": 0.283,
+   "upTo": "2026-10-04",
+   "dataHash": "0x0ec0bb29d3f5e9f88482334fd849b44d214eb3cc39bf8be704aa8d1682d73733",
+   "tx": "https://sepolia.etherscan.io/tx/0xcb2fd2f0405308e82507c9b97227cdc85204b23f16f9d45b935fb84da7921acf",
+   "at": "2026-10-15T09:11:30.066Z"
+  },
+  {
+   "what": "pre-season era5",
+   "season": 2027,
+   "district": "seaqaqa",
+   "value": 0.183,
+   "upTo": "2026-10-04",
+   "dataHash": "0x16999a22a882a129063381a017bf7cd88c3700d6188b88644a21ae4d14aef2a6",
+   "tx": "https://sepolia.etherscan.io/tx/0x5e278685c8c0e07d8b62e0eacf8ff73fbfe61184f07fd9c1dc697f60eae66de7",
+   "at": "2026-10-15T09:11:40.292Z"
+  },
+  {
+   "what": "pre-season power",
+   "season": 2027,
+   "district": "seaqaqa",
+   "value": 0.283,
+   "upTo": "2026-10-04",
+   "dataHash": "0x0ec0bb29d3f5e9f88482334fd849b44d214eb3cc39bf8be704aa8d1682d73733",
+   "tx": "https://sepolia.etherscan.io/tx/0xcf8359eaad1a8be518d5ac9ee3696574a84f7efae2dbaffaa10fb51120c6a68e",
+   "at": "2026-10-15T09:11:51.980Z"
+  }
+ ],
+ "reports": [],
+ "network": "Ethereum Sepolia (test network)",
+ "chainId": 11155111,
+ "explorer": "https://sepolia.etherscan.io",
+ "address": "0x8Ad7c24FF13d6879026731AF810c94E195E5AD93",
+ "contract": "https://sepolia.etherscan.io/address/0x8Ad7c24FF13d6879026731AF810c94E195E5AD93",
+ "deployed": "2026-10-15T09:07:03.859Z",
+ "deployTx": "https://sepolia.etherscan.io/tx/0xbeb196c0a441ef603e98a8f68713e13b47ac9fd3f0f8c910550dc990d181100c",
+ "oracles": {
+  "era5": "0xDC33B10C662805B0082f7b9cbf10230Db7a513af",
+  "power": "0xE49ad0777Ee477bAB964980A9C0F62595E18Da7a",
+  "chirps": "0x35eb90625a9885730a960C2dfb882eeE890308aE"
+ }
+}
