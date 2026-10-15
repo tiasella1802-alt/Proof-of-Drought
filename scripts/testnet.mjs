@@ -122,16 +122,27 @@ if (cmd === 'deploy') {
   const c = new ethers.Contract(state.address, ART.abi, provider)
   const want = { DEPLOYER_KEY: await c.insurer(), ERA5_KEY: await c.oracles(0), POWER_KEY: await c.oracles(1), CHIRPS_KEY: await c.oracles(2) }
   let bad = 0
+  const lines = []
+  // On GitHub, each line also goes on the run's summary page, and each problem shows up under Annotations.
+  const say = (ok, text) => { lines.push(`${ok ? '✓' : '✗'} ${text}`); console.log(`${ok ? '✓' : '✗'} ${text}`); if (!ok && process.env.GITHUB_ACTIONS) console.log(`::error title=Secret problem::${text}`) }
   for (const [name, expected] of Object.entries(want)) {
-    if (!process.env[name]) { bad++; console.log(`✗ ${name}: missing`); continue }
+    const value = process.env[name]
+    if (!value) { bad++; say(false, `${name}: missing. Add a repository secret named exactly ${name} (Settings → Secrets and variables → Actions).`); continue }
     let address
-    try { address = new ethers.Wallet(process.env[name]).address } catch { bad++; console.log(`✗ ${name}: not a valid private key (check for spaces or a missing 0x)`); continue }
+    try { address = new ethers.Wallet(value).address } catch {
+      bad++
+      const shape = value.trim() !== value ? 'it has a space or line break at the start or end' : !value.startsWith('0x') ? "it doesn't start with 0x" : value.length !== 66 ? `it is ${value.length} characters long, a key is 66` : 'it is not a valid key'
+      say(false, `${name}: not a valid private key: ${shape}. Paste only the part after = in .env.testnet.`)
+      continue
+    }
     const gas = Number(ethers.formatEther(await provider.getBalance(address)))
     const ok = address.toLowerCase() === expected.toLowerCase()
     if (!ok) bad++
-    console.log(`${ok ? '✓' : '✗'} ${name}: ${address}${ok ? '' : ` but the contract expects ${expected}`} · ${gas.toFixed(4)} test ETH for gas${ok && gas < 0.0005 ? ' (low: top it up)' : ''}`)
+    say(ok, `${name}: ${address}${ok ? '' : ` but the contract expects ${expected}. This secret holds a different key: check you copied the ${name} line.`} · ${gas.toFixed(4)} test ETH for gas${ok && gas < 0.0005 ? ' (low: top it up)' : ''}`)
   }
-  console.log(bad ? `\n${bad} problem(s). Fix the secret(s) above and run the check again.` : `\nAll four keys match contract ${state.address} on ${state.network}.`)
+  const end = bad ? `${bad} problem(s). Fix the secret(s) above and run the check again.` : `All four keys match contract ${state.address} on ${state.network}.`
+  console.log(`\n${end}`)
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Keys\n\n${lines.map((l) => `- ${l}`).join('\n')}\n\n**${end}**\n`)
   process.exit(bad ? 1 : 0)
 } else {
   console.log('usage: node scripts/testnet.mjs deploy | seal | report early|final | check')
