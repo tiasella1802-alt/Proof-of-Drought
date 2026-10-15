@@ -105,17 +105,23 @@ Fiji has about 10,200 active cane growers. With F$1,000 of cover each, spread ev
 
 ### Contract
 
-`npm test` runs 27 checks against a fresh deployment, including: only the insurer issues policies; only the three oracles report; one oracle alone can't trigger a payout; early + final never exceeds 100%; when Copernicus and NASA disagree the checkpoint waits for CHIRPS; a faked record is outvoted; a broken record can't block an honest payout; no two records agreeing pays nothing; the pool must cover every payout before anyone is paid; a wallet that refuses payment can't block its district; a held payout waits for CHIRPS, needs two signals to be rejected, and is released after the longest wait even if CHIRPS never arrives; sponsor money is ring-fenced to its district and traced to the season it paid for; forecasts are sealed with their timestamp; and on 40 random three-record seasons the contract decides exactly as `scripts/rules.mjs`.
+`npm test` runs 28 checks against a fresh deployment, including: only the insurer issues policies; only the three oracles report; one oracle alone can't trigger a payout; early + final never exceeds 100%; when Copernicus and NASA disagree the checkpoint waits for CHIRPS; a faked record is outvoted; a broken record can't block an honest payout; no two records agreeing pays nothing; the pool must cover every payout before anyone is paid; a wallet that refuses payment can't block its district; a held payout waits for CHIRPS, needs two signals to be rejected, and is released after the longest wait even if CHIRPS never arrives; sponsor money is ring-fenced to its district and traced to the season it paid for; money owed to a farmer whose wallet refused a payment is reserved until they withdraw it; forecasts are sealed with their timestamp; and on 40 random three-record seasons the contract decides exactly as `scripts/rules.mjs`.
 
 ## Live on Sepolia
 
 | | |
 | :--- | :--- |
-| Contract | [`0x06420f30B300AC756a083f0b327CE3389B0a3965`](https://sepolia.etherscan.io/address/0x06420f30B300AC756a083f0b327CE3389B0a3965) on Ethereum Sepolia (test network) |
-| Verified source | [Sourcify, exact match](https://repo.sourcify.dev/11155111/0x06420f30B300AC756a083f0b327CE3389B0a3965) (creation and runtime bytecode) |
-| Sealed | 24 records on 15 October 2026: the 2026–27 forecast for each district and 16 pre-season readings, each with the SHA-256 of its inputs ([the forecast](https://sepolia.etherscan.io/tx/0xe370bc55bebfde6793e9fc52f3924786859f6365e0726f0d4af7158710894086)) |
+| Contract | [`0x99f3f126366dc90718bC4b1a697130dEA25F90cf`](https://sepolia.etherscan.io/address/0x99f3f126366dc90718bC4b1a697130dEA25F90cf) on Ethereum Sepolia (test network) (version 3) |
+| Verified source | [Sourcify, exact match](https://repo.sourcify.dev/11155111/0x99f3f126366dc90718bC4b1a697130dEA25F90cf) (creation and runtime bytecode) |
+| Sealed | 24 records on 15 October 2026: the 2026–27 forecast for each district and 16 pre-season readings, each with the SHA-256 of its inputs ([the forecast](https://sepolia.etherscan.io/tx/0x61b9786b05958e08f63ce8e61b71edc733bdf9233d8dee35ce04921104dd5d29)) |
 | Oracles | ERA5 `0xDC33B10C662805B0082f7b9cbf10230Db7a513af`, NASA `0xE49ad0777Ee477bAB964980A9C0F62595E18Da7a`, CHIRPS `0x35eb90625a9885730a960C2dfb882eeE890308aE` |
-| Replaced | A first version, [`0x8Ad7c24FF13d6879026731AF810c94E195E5AD93`](https://sepolia.etherscan.io/address/0x8Ad7c24FF13d6879026731AF810c94E195E5AD93), was deployed and sealed earlier the same day. It was replaced before the season because sponsor money wasn't ring-fenced (another district's payout could spend it) and a held payout didn't wait for CHIRPS. It stays on the record. |
+
+Earlier versions, deployed and sealed the same day and replaced before the season after review found bugs. They stay on the record:
+
+| Version | Contract | Why it was replaced |
+| :--- | :--- | :--- |
+| 1 | [`0x8Ad7c24FF13d6879026731AF810c94E195E5AD93`](https://sepolia.etherscan.io/address/0x8Ad7c24FF13d6879026731AF810c94E195E5AD93) | sponsor money is now ring-fenced to its district, and a held payout waits for CHIRPS |
+| 2 | [`0x06420f30B300AC756a083f0b327CE3389B0a3965`](https://sepolia.etherscan.io/address/0x06420f30B300AC756a083f0b327CE3389B0a3965) | money owed to a farmer whose wallet refused a payment is now reserved, so another district's payout can't spend it |
 
 Anyone can check the seals: the website's "Check these seals yourself" button recomputes each fingerprint from `public/data/sealed-inputs.json` and compares it with the seal read straight from the blockchain.
 
@@ -209,7 +215,7 @@ scripts/train-guard.mjs       trains and evaluates the data guard, scores every 
 scripts/build-forecast.mjs    the payout forecast and pricing → data/forecast.json
 scripts/build-now.mjs         the live tracker's baseline → public/data/now.json
 scripts/check-now.mjs         checks the live tracker against every past checkpoint
-scripts/test-contract.mjs     27 rule checks on a local chain
+scripts/test-contract.mjs     28 rule checks on a local chain
 scripts/testnet.mjs           deploy, seal and report on a public test network
 .github/workflows/oracles.yml the oracles' scheduled posts for the 2026–27 season
 src/guard.js                  the data guard model (shared by training and the browser)

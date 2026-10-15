@@ -6,10 +6,12 @@ import { compile } from './compile.mjs'
 import { local } from './chain-config.mjs'
 import { RULES, decide, shareDue as jsShare } from './rules.mjs'
 
-const { DroughtCover, Refuser } = compile({
+const { DroughtCover, Refuser, Later } = compile({
   'DroughtCover.sol': readFileSync('contracts/DroughtCover.sol', 'utf8'),
   // A farmer "wallet" that rejects every transfer, to check it can't block the rest of the district.
   'Refuser.sol': 'pragma solidity ^0.8.24; contract Refuser { receive() external payable { revert("no"); } function pull(address c) external { (bool ok,) = c.call(abi.encodeWithSignature("withdraw()")); require(ok); } }',
+  // A wallet that refuses payments at first (say, a broken phone wallet) and accepts them later.
+  'Later.sol': 'pragma solidity ^0.8.24; contract Later { bool public open; receive() external payable { require(open, "no"); } function openUp() external { open = true; } function pull(address c) external { (bool ok,) = c.call(abi.encodeWithSignature("withdraw()")); require(ok); } }',
 })
 const { provider, insurer, era5, power, chirps, stranger } = local()
 const EARLY = 0, FINAL = 1, LAUTOKA = 0, BA = 2, LABASA = 6
@@ -204,6 +206,27 @@ await check('sponsor money is ring-fenced: another district cannot spend it', as
   const rc = await send(K(power).report(1998, FINAL, BA, 10, OK, h('z')))
   if ((await bal(ba)) !== eth(5) || (await k.totalSponsored()) !== 0n) throw new Error('Ba not paid from its sponsor money')
   if (!rc.logs.length) throw new Error('no logs')
+})
+await check('money owed to a farmer whose wallet refused a payment is reserved: another district cannot spend it, and the farmer can still withdraw', async () => {
+  // a fresh contract with a 1-unit pool: Lautoka's farmer refuses, then Ba's payout would need the same unit
+  const k = await new ethers.ContractFactory(DroughtCover.abi, DroughtCover.bytecode, insurer).deploy(era5.address, power.address, chirps.address)
+  await k.waitForDeployment()
+  const K = (s) => k.connect(s), ka = await k.getAddress()
+  const ref = await new ethers.ContractFactory(Later.abi, Later.bytecode, insurer).deploy()
+  await ref.waitForDeployment()
+  const R = await ref.getAddress(), ba = ethers.Wallet.createRandom().address
+  await send(insurer.sendTransaction({ to: ka, value: eth(1) }))
+  await send(k.issue(R, LAUTOKA, eth(1)))
+  await send(k.issue(ba, BA, eth(1)))
+  await send(K(era5).report(1998, FINAL, LAUTOKA, 10, OK, h('o1')))
+  await send(K(power).report(1998, FINAL, LAUTOKA, 10, OK, h('o2')))
+  if ((await k.owed(R)) !== eth(1) || (await k.totalOwed()) !== eth(1)) throw new Error('not owed')
+  await send(K(era5).report(1998, FINAL, BA, 10, OK, h('o3')))
+  try { await send(K(power).report(1998, FINAL, BA, 10, OK, h('o4'))); throw new Error('Ba spent the money owed to the Lautoka farmer') }
+  catch (e) { if (/spent/.test(e.message)) throw e }
+  await send(ref.openUp()) // the wallet works again
+  await send(ref.pull(ka)) // and its owner collects what was owed
+  if ((await bal(R)) !== eth(1) || (await k.owed(R)) !== 0n || (await k.totalOwed()) !== 0n) throw new Error('withdraw did not pay out what was owed')
 })
 await check('a forecast can be sealed on the record, timestamped, only by the insurer or an oracle', async () => {
   await reverts(as(stranger).seal(ethers.encodeBytes32String('forecast'), 2027, BA, 610, h('model')), 'NotAllowed')

@@ -6,8 +6,8 @@
    "district": "lautoka",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0xe370bc55bebfde6793e9fc52f3924786859f6365e0726f0d4af7158710894086",
-   "at": "2026-10-15T09:28:05.418Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x61b9786b05958e08f63ce8e61b71edc733bdf9233d8dee35ce04921104dd5d29",
+   "at": "2026-10-15T10:01:50.022Z"
   },
   {
    "what": "forecast",
@@ -15,8 +15,8 @@
    "district": "nadi",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0xb4917f4167ecc0c5fd7118c649d551d55c642bec48710dfbed4c5efb7cca34c2",
-   "at": "2026-10-15T09:28:15.659Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x6dba44af3427df4b2e666cc124f21fc12f72dfb2a6f91891c0c0bc1afb15da53",
+   "at": "2026-10-15T10:02:04.320Z"
   },
   {
    "what": "forecast",
@@ -24,8 +24,8 @@
    "district": "ba",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0xf542b602648c2333a2601df348688701a42f9bb8a7647e0a501a051556294a54",
-   "at": "2026-10-15T09:28:25.848Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x6e3966e51ff9bbf9285a2e0172fef3bbfa0c024d63dda16543559ddb20a16746",
+   "at": "2026-10-15T10:02:14.579Z"
   },
   {
    "what": "forecast",
@@ -33,8 +33,8 @@
    "district": "tavua",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0x5df32515201ebd344447355edd80f6a7cb235fd3d0b62e3a7a50be61dcfef166",
-   "at": "2026-10-15T09:28:40.260Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xe765e8f0b0213d6e9783751da8bb1f18bb6b91da177b461773c4e4a2a3fbf4f0",
+   "at": "2026-10-15T10:02:28.841Z"
   },
   {
    "what": "forecast",
@@ -42,8 +42,8 @@
    "district": "rakiraki",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0x44ecca76fe258d25e4cd22d77505d527625d25a601ead07899f50d56947932e3",
-   "at": "2026-10-15T09:28:50.562Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xaf94916dea680d90f25cc51be5a343b023587c535f00ac923ca305c8341ae361",
+   "at": "2026-10-15T10:02:39.505Z"
   },
   {
    "what": "forecast",
@@ -51,8 +51,8 @@
    "district": "sigatoka",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0x305948ee5e3a55a5af8618ace1b6de3d16b83aeb5cff10cd263e69ce52d2234d",
-   "at": "2026-10-15T09:29:00.791Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x74b869251ab5701f5c33b0d17ca3642b94037ed5e65b877410124ff6f1173699",
+   "at": "2026-10-15T10:02:49.731Z"
   },
   {
    "what": "forecast",
@@ -60,8 +60,8 @@
    "district": "labasa",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0xc553461bdeed5ef22d6b8c682b2cd43aee101e13ab8b9dae697390b8d63f74ee",
-   "at": "2026-10-15T09:29:14.969Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xc976ba4632614cbd15301fcf934b8360f6bca7e67dff5c9b7b197a92636588fe",
+   "at": "2026-10-15T10:03:05.273Z"
   },
   {
    "what": "forecast",
@@ -69,8 +69,8 @@
    "district": "seaqaqa",
    "value": 0.601,
    "dataHash": "0x5ad3792298ee26a65097b72705653bfb2fd58d1287ee09c89613009950dc3d08",
-   "tx": "https://sepolia.etherscan.io/tx/0x88b421e3f54ce3f274276c4a9726f90e52ced4c410b117a99485b33696dca815",
-   "at": "2026-10-15T09:29:25.235Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xad2961c9fc337fc100c5afcdde377227bdaba786d452afd50fdc46fb3d6747a5",
+   "at": "2026-10-15T10:03:15.505Z"
   },
   {
    "what": "pre-season era5",
@@ -79,8 +79,8 @@
    "value": 0.267,
    "upTo": "2026-10-04",
    "dataHash": "0x9f887355cc3cc39789f8328d6588241c8d1b06422c067288134930a9f81af533",
-   "tx": "https://sepolia.etherscan.io/tx/0xcb6ce10fc91cadf15f87efeafe527a6ce83aa9d8d7a1b00b29c49962f4d380ab",
-   "at": "2026-10-15T09:29:39.855Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x451cf6a1d037c2c5bfdf51f8c239a7a34ff90ee300f92854a8d1ddd8f4b5472f",
+   "at": "2026-10-15T10:03:26.574Z"
   },
   {
    "what": "pre-season power",
@@ -89,8 +89,8 @@
    "value": 0.117,
    "upTo": "2026-10-04",
    "dataHash": "0xc7aa58606be4c77df36e681e027b64485851c69208d7418528bd54478c446bef",
-   "tx": "https://sepolia.etherscan.io/tx/0x655a46f8ccba9938526b1a329213c3ae3e9f65637366a3381b49e808f5d59354",
-   "at": "2026-10-15T09:29:50.183Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xa2abf45dd931386fba0239b6eab2f0532b2bb9387c330f58e21e2e235baf47a0",
+   "at": "2026-10-15T10:03:38.941Z"
   },
   {
    "what": "pre-season era5",
@@ -99,8 +99,8 @@
    "value": 0.217,
    "upTo": "2026-10-04",
    "dataHash": "0x28cb5305a223d094101e9a741f428ce71f40d7ee6567e5cd965a4b279d25ea76",
-   "tx": "https://sepolia.etherscan.io/tx/0xee10033f2f3c555729cb9480465a2f6097112d3c9b197a80745ac7b518a15301",
-   "at": "2026-10-15T09:30:04.501Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x99091d9c91c02b16cf6af17b41b6bc7d85b9d5f155ea905d74434396e334fb28",
+   "at": "2026-10-15T10:03:50.171Z"
   },
   {
    "what": "pre-season power",
@@ -109,8 +109,8 @@
    "value": 0.3,
    "upTo": "2026-10-04",
    "dataHash": "0x31c3334e9f78ab8e3564e2f30a96390f36bb428ce2a576e4f8e247f07c048dc9",
-   "tx": "https://sepolia.etherscan.io/tx/0xd117c91e64f9e155ae88eb1b8c3db78c6bfc7f6196cff418f3bca64dceb579dc",
-   "at": "2026-10-15T09:30:14.760Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x8ed4a208e98c2c1138a743c36df9a9370186020555dc98303562f797a9d1d190",
+   "at": "2026-10-15T10:04:05.704Z"
   },
   {
    "what": "pre-season era5",
@@ -119,8 +119,8 @@
    "value": 0.233,
    "upTo": "2026-10-04",
    "dataHash": "0x3365ae83da573c6ee3b4bef328bd4f26589d29bf3ca7422203547b17d8747df2",
-   "tx": "https://sepolia.etherscan.io/tx/0x27a131d1423483813c1bc11e58a20ed25b3bc5dd119c45d9945420195f705e13",
-   "at": "2026-10-15T09:30:25.782Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x76ab19ab9106f89a0fea235628636565e6f9c11bde52e2e0e3e6edd79a5e5080",
+   "at": "2026-10-15T10:04:20.180Z"
   },
   {
    "what": "pre-season power",
@@ -129,8 +129,8 @@
    "value": 0.117,
    "upTo": "2026-10-04",
    "dataHash": "0xc7aa58606be4c77df36e681e027b64485851c69208d7418528bd54478c446bef",
-   "tx": "https://sepolia.etherscan.io/tx/0x87b1bfe11a0ddf257598152c5b0cb4bff00ffae7eac9a5083bdb51a416df63a1",
-   "at": "2026-10-15T09:30:40.033Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xc892c1afbd3feb9ce0460abcab1fbdc130f4ac3a304364efed8c5545ed731aa1",
+   "at": "2026-10-15T10:04:26.270Z"
   },
   {
    "what": "pre-season era5",
@@ -139,8 +139,8 @@
    "value": 0.267,
    "upTo": "2026-10-04",
    "dataHash": "0x84769fedfd79de23daae914fd1becb376edc021b4663e3773d06b347bf3a3d39",
-   "tx": "https://sepolia.etherscan.io/tx/0x119a3eea06c4cc6f5110512005b38473db928517dc998da56b9170281af3cd84",
-   "at": "2026-10-15T09:30:50.249Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x49a53ee8d908a671a996aac7ae168b67610415cb7bc63eeb4dc62b8703dcf7b5",
+   "at": "2026-10-15T10:04:41.045Z"
   },
   {
    "what": "pre-season power",
@@ -149,8 +149,8 @@
    "value": 0.117,
    "upTo": "2026-10-04",
    "dataHash": "0x810497486cf47622ba646d9d6ff1bc6af91e2f28f09fafd54ec97b7eb981674d",
-   "tx": "https://sepolia.etherscan.io/tx/0xfae795b30b17c0b63d49e505ed352422d1e14b036c20767bdb6dc476c8dc257a",
-   "at": "2026-10-15T09:31:04.481Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x2383e01069c0d7f6bf079c42becdff07b8f92f839d18564bac7f45229d500c1b",
+   "at": "2026-10-15T10:04:52.047Z"
   },
   {
    "what": "pre-season era5",
@@ -159,8 +159,8 @@
    "value": 0.25,
    "upTo": "2026-10-04",
    "dataHash": "0x6a10b61be3fdeba820eae406758209f22143c54c6e2feff5f43719652bf1fc08",
-   "tx": "https://sepolia.etherscan.io/tx/0x39b25d0cd955d876b4a3d3b9dcdfdbe1d223c7b701698ff52944583fc735422d",
-   "at": "2026-10-15T09:31:19.143Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x8f07345f41f42253e80b8567f4e255b59572479296ba53d5098dc8385b229bba",
+   "at": "2026-10-15T10:05:02.449Z"
   },
   {
    "what": "pre-season power",
@@ -169,8 +169,8 @@
    "value": 0.117,
    "upTo": "2026-10-04",
    "dataHash": "0x810497486cf47622ba646d9d6ff1bc6af91e2f28f09fafd54ec97b7eb981674d",
-   "tx": "https://sepolia.etherscan.io/tx/0x27ba6d45a203bd2571f24065c2256158db7f76dac21166fcd1bd0535d59a17ad",
-   "at": "2026-10-15T09:31:29.319Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xcc57ea172488ac26855361b5225643ef1b011f99039d905e40ecb5fd7956a8ee",
+   "at": "2026-10-15T10:05:13.819Z"
   },
   {
    "what": "pre-season era5",
@@ -179,8 +179,8 @@
    "value": 0.25,
    "upTo": "2026-10-04",
    "dataHash": "0x95eb69f6f17e680b6467d9b7408b56ba5d768f0029fcc9b54f516ba03ca75cdf",
-   "tx": "https://sepolia.etherscan.io/tx/0xfdef9d20e8db9da1a77c5d1bde8cf2bc1e90b17a980dc6e5a216597a37f37459",
-   "at": "2026-10-15T09:31:39.533Z"
+   "tx": "https://sepolia.etherscan.io/tx/0xf86e17950e9d9ec72409f2d8a64ee700245082ac44e14fad33aac69b5ff2a02d",
+   "at": "2026-10-15T10:05:28.358Z"
   },
   {
    "what": "pre-season power",
@@ -189,8 +189,8 @@
    "value": 0.3,
    "upTo": "2026-10-04",
    "dataHash": "0x31c3334e9f78ab8e3564e2f30a96390f36bb428ce2a576e4f8e247f07c048dc9",
-   "tx": "https://sepolia.etherscan.io/tx/0xc8738aafd3ecea24e5b92e04a91a598898933389f8aed9e4271c94272601c740",
-   "at": "2026-10-15T09:31:49.916Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x13496eaabc5cc0c2137be5b6d949d86237c09e60f3da5311d39668aae26e0917",
+   "at": "2026-10-15T10:05:38.586Z"
   },
   {
    "what": "pre-season era5",
@@ -199,8 +199,8 @@
    "value": 0.083,
    "upTo": "2026-10-04",
    "dataHash": "0xf34e1c47b1ebd9f230156dd68003da5d0ecf1627c49ea3128bb6f823cccad8c2",
-   "tx": "https://sepolia.etherscan.io/tx/0x6e1e95bd06d09edfe95945bb303f349804b3eeff70db71252ac211f219359d84",
-   "at": "2026-10-15T09:32:04.695Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x61eda25169ac0e799ddd21c78ec9d16be22386aec319b685147d84a1220d59a5",
+   "at": "2026-10-15T10:05:53.087Z"
   },
   {
    "what": "pre-season power",
@@ -209,8 +209,8 @@
    "value": 0.283,
    "upTo": "2026-10-04",
    "dataHash": "0x0ec0bb29d3f5e9f88482334fd849b44d214eb3cc39bf8be704aa8d1682d73733",
-   "tx": "https://sepolia.etherscan.io/tx/0xfe53379d4bd59e56c98ab97ef6405da2c04d8810e9f38938530be885d783ce00",
-   "at": "2026-10-15T09:32:15.331Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x5ccae36b64e949a6b0745512ca38fddf995d4e56b9c2ad826a39cb3925c76b1f",
+   "at": "2026-10-15T10:06:03.326Z"
   },
   {
    "what": "pre-season era5",
@@ -219,8 +219,8 @@
    "value": 0.183,
    "upTo": "2026-10-04",
    "dataHash": "0x16999a22a882a129063381a017bf7cd88c3700d6188b88644a21ae4d14aef2a6",
-   "tx": "https://sepolia.etherscan.io/tx/0x879150e700346d020e20cd142e46283b1795cd29f3ebeb36b2c6800bad078c30",
-   "at": "2026-10-15T09:32:25.608Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x0c9644773c3fcb908d979c7436901d6cd5cdde5d9b7d5d8b3d928c8682d0949e",
+   "at": "2026-10-15T10:06:13.602Z"
   },
   {
    "what": "pre-season power",
@@ -229,18 +229,18 @@
    "value": 0.283,
    "upTo": "2026-10-04",
    "dataHash": "0x0ec0bb29d3f5e9f88482334fd849b44d214eb3cc39bf8be704aa8d1682d73733",
-   "tx": "https://sepolia.etherscan.io/tx/0xe936e324e5909cbd5f87818e7e95874fb34a8efdaa5ae465771926e0eb9a7aa7",
-   "at": "2026-10-15T09:32:40.176Z"
+   "tx": "https://sepolia.etherscan.io/tx/0x9a3a5c1093f752c0e4b78af1152a48d5485d849fa5ed798f075fe438c7e84ac4",
+   "at": "2026-10-15T10:06:28.196Z"
   }
  ],
  "reports": [],
  "network": "Ethereum Sepolia (test network)",
  "chainId": 11155111,
  "explorer": "https://sepolia.etherscan.io",
- "address": "0x06420f30B300AC756a083f0b327CE3389B0a3965",
- "contract": "https://sepolia.etherscan.io/address/0x06420f30B300AC756a083f0b327CE3389B0a3965",
- "deployed": "2026-10-15T09:27:39.816Z",
- "deployTx": "https://sepolia.etherscan.io/tx/0x27e2a548a9407dcf9aa57033192a343298e913ac28c1f079cb2ca346522f6196",
+ "address": "0x99f3f126366dc90718bC4b1a697130dEA25F90cf",
+ "contract": "https://sepolia.etherscan.io/address/0x99f3f126366dc90718bC4b1a697130dEA25F90cf",
+ "deployed": "2026-10-15T10:01:39.084Z",
+ "deployTx": "https://sepolia.etherscan.io/tx/0x3b5855e3c855b48ea095711bfa92c8f9c4150e26cf09397bea4cb93119e2105a",
  "oracles": {
   "era5": "0xDC33B10C662805B0082f7b9cbf10230Db7a513af",
   "power": "0xE49ad0777Ee477bAB964980A9C0F62595E18Da7a",
@@ -254,6 +254,14 @@
    "sealed": 24,
    "replaced": "2026-10-15T09:25:34.262Z",
    "reason": "Fixed before the season: sponsor money is now ring-fenced to its district, and a held payout waits for CHIRPS"
+  },
+  {
+   "address": "0x06420f30B300AC756a083f0b327CE3389B0a3965",
+   "contract": "https://sepolia.etherscan.io/address/0x06420f30B300AC756a083f0b327CE3389B0a3965",
+   "deployed": "2026-10-15T09:27:39.816Z",
+   "sealed": 24,
+   "replaced": "2026-10-15T09:59:28.600Z",
+   "reason": "Fixed before the season: money owed to a farmer whose wallet refused a payment is now reserved, so another district's payout can't spend it"
   }
  ],
  "constructorArgs": "000000000000000000000000dc33b10c662805b0082f7b9cbf10230db7a513af000000000000000000000000e49ad0777ee477bab964980a9c0f62595e18da7a00000000000000000000000035eb90625a9885730a960c2dfb882eee890308ae",

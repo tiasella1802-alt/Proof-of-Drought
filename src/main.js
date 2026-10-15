@@ -626,7 +626,7 @@ fetch('/data/testnet.json').then((r) => (r.ok ? r.json() : null)).then((t) => {
   $('sealed').hidden = false
   $('sealed').innerHTML = `<b>Sealed on ${when}, before the rain falls.</b> This forecast and ${readings.length} pre-season readings are on ${t.network}, timestamped. Nobody can change them, including us.${posted}` +
     `<span class="links"><a href="${t.contract}" target="_blank" rel="noopener">The contract</a> · <a href="https://repo.sourcify.dev/${t.chainId}/${t.address}" target="_blank" rel="noopener">its verified source code</a>${forecast[0] ? ` · <a href="${forecast[0].tx}" target="_blank" rel="noopener">the sealed forecast</a>` : ''} · <button class="lnk" id="seal-check">Check these seals yourself</button></span>` +
-    (old ? `<small>This replaces a first version from earlier the same day. ${old.reason}. <a href="${old.contract}" target="_blank" rel="noopener">The first version</a> stays on the record.</small>` : '') +
+    (old ? `<small>This is version ${t.previous.length + 1}, deployed and sealed the same day after fixes found in review. ${old.reason}. Earlier versions stay on the record: ${t.previous.map((p, i) => `<a href="${p.contract}" target="_blank" rel="noopener">version ${i + 1}</a>`).join(', ')}.</small>` : '') +
     '<div class="seal-out" id="seal-out" hidden></div>'
   $('seal-check').onclick = () => checkSeals(t)
 }).catch(() => {})

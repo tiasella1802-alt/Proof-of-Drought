@@ -27,6 +27,7 @@ pragma solidity ^0.8.24;
 ///
 /// Sponsors (a government, a donor) can pay into a district's pool. Sponsor money is ring-fenced: only that district's
 /// payouts can use it, and every sponsor dollar used is logged against the district and season it paid for.
+/// Money owed to a farmer whose wallet refused a payment is ring-fenced too, until they withdraw it.
 /// Anyone with a role can seal a forecast or reading on the record before the season.
 contract DroughtCover {
     enum Stage { EARLY, FINAL }
@@ -61,6 +62,7 @@ contract DroughtCover {
     // season => policy id => share of cover already paid (per mille)
     mapping(uint16 => mapping(uint256 => uint16)) public paidShare;
     mapping(address => uint256) public owed;
+    uint256 public totalOwed; // owed to farmers whose wallets refused a payment: reserved for them, no payout can spend it
     // season => stage => district => payout waiting out its challenge period
     mapping(uint16 => mapping(Stage => mapping(uint8 => Hold))) public holds;
     // sponsor money set aside for each district, not yet used, and the total of it (which other districts can't touch)
@@ -224,8 +226,9 @@ contract DroughtCover {
                 total += amounts[i];
             }
         }
-        // What this district may use: the unsponsored pool plus its own sponsor money (never another district's).
-        uint256 available = address(this).balance - totalSponsored + sponsored[district];
+        // What this district may use: the free pool plus its own sponsor money (never another district's sponsor
+        // money, and never money already owed to a farmer).
+        uint256 available = address(this).balance - totalSponsored - totalOwed + sponsored[district];
         if (total > available) revert PoolTooSmall(total, available);
         // Sponsor money for this district is used first, and logged against this district and season.
         uint256 fromSponsors = total < sponsored[district] ? total : sponsored[district];
@@ -240,7 +243,7 @@ contract DroughtCover {
             // A wallet that refuses the transfer must not block everyone else: keep its money for it to withdraw.
             (bool ok, ) = p.farmer.call{value: amounts[i], gas: 30000}("");
             if (ok) emit Paid(season, ids[i], p.farmer, amounts[i]);
-            else { owed[p.farmer] += amounts[i]; emit Held(season, ids[i], p.farmer, amounts[i]); }
+            else { owed[p.farmer] += amounts[i]; totalOwed += amounts[i]; emit Held(season, ids[i], p.farmer, amounts[i]); }
             n++;
         }
     }
@@ -249,6 +252,7 @@ contract DroughtCover {
     function withdraw() external {
         uint256 amount = owed[msg.sender];
         owed[msg.sender] = 0;
+        totalOwed -= amount;
         (bool ok, ) = payable(msg.sender).call{value: amount}("");
         require(ok, "withdraw failed");
     }
